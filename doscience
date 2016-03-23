@@ -1,1 +1,5 @@
-bin/doscience
+#!/bin/bash
+
+
+# bin/doscience data_in data_out
+
