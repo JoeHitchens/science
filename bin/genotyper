@@ -1,7 +1,6 @@
 #!/bin/bash
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-echo $DIR
 locus_file=$1
 if [ "$1" =  "" ] ; then
 	b=`basename $0`
