@@ -22,16 +22,27 @@ if cd "$dst" ; then
 		echo "======= Processing $src ..."
 
 		flat="$dst/flat"
-		assembled="$dst/assembled"
-		genos="$dst/genos"
-
-if false ; then
-
-		echo "======= Flattening and uncompressing ..."
 		if test -d "$flat" ; then
 			rm -r "$flat" 
 		fi
 		mkdir -p "$flat"
+
+		assembled="$dst/assembled"
+		if test -d "$assembled" ; then
+			rm -r "$assembled" 
+		fi
+		mkdir -p "$assembled"
+
+		genos="$dst/genos"
+		if test -d "$genos" ; then
+			rm -r "$genos" 
+		fi
+		mkdir -p "$genos"
+
+
+if false ; then
+		echo "======= Flattening and uncompressing ..."
+		o=""
 		find "$src" | grep .fastq.gz | while read i ; do
 			o=`basename "$i"`
 			echo $o ...
@@ -39,28 +50,28 @@ if false ; then
 			chmod u+w "$flat/$o"
 			gunzip "$flat/$o"
 		done
-
-		echo "======= Merging $flat R1 R2 ..."
-		merge_files_in_one_dir.sh "$flat" R1 R2
-		if test -d "$assembled" ; then
-			rm -r "$assembled" 
+		if [ "$o" = "" ] ; then
+			echo "No source files"
+			exit 1
 		fi
-		mkdir -p "$assembled"
-		find "$dst" | grep assembled.fastq | while read i ; do
-			mv "$i" "$assembled"
-		done
-
 fi
 
 
 if false ; then
-		echo "======= Making genos files ..."
-		rm -r "$genos"
-		mkdir "$genos"
-		pushd "$assembled"
-		genotyper "/Volumes/joe/science/bin/LocusInfo.csv"
-		mv *.genos ../genos/
-		popd
+			echo "======= Merging $flat R1 R2 ..."
+			merge_files_in_one_dir.sh "$flat" R1 R2
+			find "$dst" | grep assembled.fastq | while read i ; do
+				mv "$i" "$assembled"
+			done
+fi
+
+
+if false ; then
+			echo "======= Making genos files ..."
+			pushd "$assembled"
+			genotyper "/Volumes/joe/science/bin/LocusInfo.csv"
+			mv *.genos ../genos/
+			popd
 fi
 
 
@@ -68,6 +79,7 @@ fi
 		echo "======= Compiling genos files ..."
 		pushd "$genos"
 		GTseq_GenoCompile_v2_IFI.pl > "$dst/compiled.csv";
+		popd
 
 
 	fi
