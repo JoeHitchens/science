@@ -38,72 +38,20 @@ if cd "$dst" ; then
 		echo "======= Hashing and counting ..."
 		for i in "$dst"/*.fastq ; do
 			echo $i
-			GTseq_HashSeqs.pl "$i" > "$i.hash"
-			GTseq_SeqTest.pl "/Volumes/joe/science/bin/AssayInfo.txt" "$i.hash" > "$i.csv"
+			bin/GTseq_HashSeqs.pl "$i" > "$i.hash"
+			bin/GTseq_SeqTest.pl "bin/AssayInfo.txt" "$i.hash" > "$i.csv"
 		done
 
 		echo "======= Merging $flat R1 R2 ..."
-		merge_files_in_one_dir.sh "$dst" R1 R2 "$dst"
+		bin/merge_files_in_one_dir.sh "$dst" R1 R2 "$dst"
 		mv "$dst"/merged_*/*assembled.fastq $dst
 		cd $dst
-		genotyper "/Volumes/joe/science/bin/Ots_GTseq95_ProbeSeqs_v2.csv"
-		GTseq_GenoCompile_v2_IFI.pl > "$dst/compiled.csv";
-		GTseq_GenoCompile_v2_IFI.pl C > "$dst/compiled_counts.csv";
-		GTseq_GenoCompile_v2_IFI.pl S > "$dst/compiled_snps.csv";
-		GTseq_GenoCompile_v2_IFI.pl N 90 > "$dst/compiled_numeric.csv";
+		bin/genotyper "bin/Ots_GTseq95_ProbeSeqs_v2.csv"
+		bin/GTseq_GenoCompile_v2_IFI.pl > "$dst/compiled.csv";
+		bin/GTseq_GenoCompile_v2_IFI.pl C > "$dst/compiled_counts.csv";
+		bin/GTseq_GenoCompile_v2_IFI.pl S > "$dst/compiled_snps.csv";
+		bin/GTseq_GenoCompile_v2_IFI.pl N 90 > "$dst/compiled_numeric.csv";
 
 	fi
 fi
-
-
-if false ; then
-
-		flat="$dst/flat"
-		assembled="$dst/assembled"
-		genos="$dst/genos"
-
-		echo "======= Flattening and uncompressing ..."
-		rm -r "$flat" &> /dev/null
-		mkdir -p "$flat"
-		o=""
-		find "$src" | grep .fastq.gz | while read i ; do
-			o=`basename "$i"`
-			echo $o ...
-			cp -i "$i" "$flat/$o"
-			chmod u+w "$flat/$o"
-			gunzip "$flat/$o"
-		done
-		#if [ "$o" = "" ] ; then
-		#	echo "No source files"
-		#	exit 1
-		#fi
-
-
-		echo "======= Merging $flat R1 R2 ..."
-		merge_files_in_one_dir.sh "$flat" R1 R2
-		rm -r "$assembled" &> /dev/null
-		mkdir -p "$assembled"
-		find "$dst" | grep assembled.fastq | while read i ; do
-			mv "$i" "$assembled"
-		done
-
-
-		echo "======= Making genos files ..."
-		pushd "$assembled" &> /dev/null
-		#genotyper "/Volumes/joe/science/bin/LocusInfo.csv"
-		genotyper "/Volumes/joe/science/bin/Ots_GTseq95_ProbeSeqs_v2.csv"
-		rm -r "$genos" &> /dev/null
-		mkdir -p "$genos"
-		#mv *.genos ../genos/
-		popd &> /dev/null
-
-
-		echo "======= Compiling genos files ..."
-		pushd "$assembled" &> /dev/null
-		GTseq_GenoCompile_v2_IFI.pl > "$dst/compiled.csv";
-		popd &> /dev/null
-
-
-fi
-
 
