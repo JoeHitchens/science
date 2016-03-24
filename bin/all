@@ -35,12 +35,23 @@ if cd "$dst" ; then
 			gunzip "$dst/$o"
 		done
 
+		echo "======= Hashing and counting ..."
+		for i in "$dst"/*.fastq ; do
+			echo $i
+			GTseq_HashSeqs.pl "$i" > "$i.hash"
+			GTseq_SeqTest.pl "/Volumes/joe/science/bin/AssayInfo.txt" "$i.hash" > "$i.csv"
+		done
+
 		echo "======= Merging $flat R1 R2 ..."
 		merge_files_in_one_dir.sh "$dst" R1 R2 "$dst"
 		mv "$dst"/merged_*/*assembled.fastq $dst
 		cd $dst
 		genotyper "/Volumes/joe/science/bin/Ots_GTseq95_ProbeSeqs_v2.csv"
 		GTseq_GenoCompile_v2_IFI.pl > "$dst/compiled.csv";
+		GTseq_GenoCompile_v2_IFI.pl C > "$dst/compiled_counts.csv";
+		GTseq_GenoCompile_v2_IFI.pl S > "$dst/compiled_snps.csv";
+		GTseq_GenoCompile_v2_IFI.pl N 90 > "$dst/compiled_numeric.csv";
+
 	fi
 fi
 
