@@ -1,5 +1,6 @@
 #!/bin/bash
 
-
-bin/all data_in data_out
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$DIR"
+"$DIR"/bin/all data_in data_out
 
