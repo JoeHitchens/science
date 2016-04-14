@@ -45,7 +45,7 @@ foreach my $samples (@Files){
 	close READ;
 	# close the ".genos" file
 
-	# re-open the file with ".genos" in "append" mode ... we will write to the end of the file
+	# re-open the file with ".genos" in APPEND mode ... we will write to the end of the file
 	open (OUT, '>>', $genos) or die "Error opening $genos\n";
 
 	# initialize some variables
@@ -58,19 +58,19 @@ foreach my $samples (@Files){
 		chomp;
 
 		# read 4 lines from the .fastq file
-		my $info_line = $_;			# first line
-		my $seq_line = <FILE>;		# second
-		my $info_line2 = <FILE>;	# third
-		my $qual_line = <FILE>;		# 4th
+		my $info_line = $_;			# 1 ...
+		my $seq_line = <FILE>;		# 2 ... 
+		my $info_line2 = <FILE>;	# 3 ...
+		my $qual_line = <FILE>;		# 4
 
 		if($seq_line =~ m/^GGTCTTGCAGTCAGGAGAGG/) {
-			# begins with the sequence
+			# 2nd line begins with the sequence
 			$primer_counts++;
 		}
 
-		# XXX move up into if() above to avoid redundant first match?
+		# XXX move this up into if() above to avoid redundant first match?
 		if(($seq_line =~ m/^GGTCTTGCAGTCAGGAGAGG/) && ($seq_line =~ m/TCAGCGAAGTGGAGAT/)) {
-			# begins with the first sequence AND "contains" the second sequence (anywhere)
+			# 2nd line begins with the first sequence AND "contains" the second sequence (anywhere)
 			$counts++;
 		}
 	}
