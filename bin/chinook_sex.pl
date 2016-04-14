@@ -29,7 +29,7 @@ foreach my $samples (@Files){
 	my $primerOT = 0;
 	my $perofallOTreads = 0;
 
-	# open the file for reading with the ".genos" suffix or die trying
+	# open the file with the ".genos" suffix for READing or die trying
 	open (READ, "<$genos") or die;
 		# iterate through each line in the file
 		while (<READ>) {
