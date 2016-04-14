@@ -63,6 +63,9 @@ if cd "$dst" ; then
 		GTseq_GenoCompile_v2_IFI.pl S > "$dst/compiled_snps.csv";
 		GTseq_GenoCompile_v2_IFI.pl N 90 > "$dst/compiled_numeric.csv";
 
+		echo "======= Generating sex info ..."
+		OmySEX_test.pl > "sexinfo.csv"
+
 	fi
 fi
 

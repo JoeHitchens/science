@@ -11,6 +11,7 @@ chomp ( @Files );
 foreach my $samples (@Files){
 	open (FILE, "<$samples") or die;
 	my $reads = `wc -l $samples`;
+	$reads =~ s/^\s+|\s+$//g;	# Mac version of wc adds white-space before count, so trim leading/trailing white-space
 	$reads =~ s/\s.*fastq//;
 	$reads = ($reads/4) * 0.6;
 	my $thresh = ($reads * 0.0012)/5;
@@ -22,10 +23,10 @@ foreach my $samples (@Files){
 		chomp;
 		if(/ATGTGTTCATATGCCAG/){$counts++}
 	}
-if(($counts > $thresh) && ($reads > 5000)) {$sex = "M"}
-elsif (($counts < $thresh) && ($reads > 5000)) {$sex = "F"}
-close FILE;
-print "$sex\n";
+	if(($counts > $thresh) && ($reads > 5000)) {$sex = "M"}
+	elsif (($counts < $thresh) && ($reads > 5000)) {$sex = "F"}
+	close FILE;
+	print "$sex\n";
 }
 
 
