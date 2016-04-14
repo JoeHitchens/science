@@ -38,7 +38,8 @@ foreach my $samples (@Files){
 				my @info = split ",", $_;			# split the line up on comman boundaries
 				my @info2 = split ":", $info[2];	# split the 3rd comma separated field on colons
 				$OT_reads = $info2[1];				# set $OT_reads to the 2nd colon separated field
-				# XXX break ?
+
+				# XXX break ?  Why am I reading every line in the file if I only care about the first one?
 			}
 		}
 	close READ;
