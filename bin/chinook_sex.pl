@@ -79,7 +79,7 @@ foreach my $samples (@Files){
 		$primer_counts = 1;
 	}
 
-	# percentage of all OT reads ?
+	# percentage of  ...
 	$primerOT = $counts / $primer_counts * 100;
 	$primerOT = sprintf("%.3f", $primerOT);
 
