@@ -9,7 +9,8 @@
 use strict; use warnings;
 
 # get a list of all the files in the current working directory that end with ".assembled.fastq"
-my @Files = `ls *.assembled.fastq`;
+#my @Files = `ls *.assembled.fastq`;
+my @Files = `ls *R1*.fastq`;
 
 chomp ( @Files );
 

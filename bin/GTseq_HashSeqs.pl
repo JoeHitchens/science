@@ -10,7 +10,7 @@ open(FILE, "<$file")
 	or die;
 
 while (<FILE>) {
-		
+
 	$seq_line = <FILE>;
 	chomp($seq_line);
 	$tags{$seq_line}++;
