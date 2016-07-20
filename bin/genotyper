@@ -8,8 +8,9 @@ if [ "$1" =  "" ] ; then
 else
 	for i in *.assembled.fastq ; do
 		echo "$i ..."
-		# GTseq_Genotyper.pl LocusInfo.csv "$i" > "$i.genos"
-		GTseq_Genotyper_v2_IFI.pl "$locus_file" "$i" > "$i.genos"
+		#GTseq_Genotyper.pl LocusInfo.csv "$i" > "$i.genos"
+		#GTseq_Genotyper_v2_IFI.pl "$locus_file" "$i" > "$i.genos"
+		GTseq_Genotyper_v3.pl "$locus_file" "$i" > "$i.genos"
 		#node "$DIR/genotyper.js" "$locus_file" "$i" > "$i.genos"
 	done
 fi
