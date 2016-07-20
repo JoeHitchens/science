@@ -64,7 +64,7 @@ if cd "$dst" ; then
 
 		echo "======= Generating sex info ..."
 		#OmySEX_test.pl > "sexinfo.csv"
-		chinook_sex.pl
+		chinook_sex.pl > sexinfo.csv
 
 	fi
 fi
