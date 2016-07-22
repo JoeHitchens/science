@@ -3,6 +3,8 @@
 # Usage: $ GTseq_HashSeqs.pl something.fastq > something.hash
 # collapses unique reads into a single fasta file and counts the occurrences of each.
 
+use strict; use warnings;
+
 $file = $ARGV[0];
 $lib = $ARGV[1];
 

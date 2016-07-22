@@ -43,8 +43,15 @@ foreach my $samples (@Files) {
 	print "$sample_name,";
 	open (FILE, "<$samples") or die;
 	while (<FILE>) {
-	if ($. == 1) {chomp; my @summary = split ",", $_; $summary[1] =~ s/Raw-Reads\://; print "$summary[1],"; $raw = $summary[1];
-		$IFI = $summary[4]; $IFI =~ s/IFI_score\://;}
+	if ($. == 1) {
+		chomp;
+		my @summary = split ",", $_;
+		$summary[1] =~ s/Raw-Reads\://;
+		print "$summary[1],";
+		$raw = $summary[1];
+		$IFI = $summary[4];
+		$IFI =~ s/IFI_score\://;
+	}
 	elsif ($. > 1) {
 		$num_targets++;
 		chomp;
@@ -57,14 +64,18 @@ foreach my $samples (@Files) {
 		my $count2 = $info[2];
 		$count2 =~ s/.*=//;
 		$on_target = $on_target + $count1 + $count2;
-				}
-			}
-		close FILE;
-		$GT_pct = 100-($GT_pct/$num_targets*100);
-		my $OT_pct = $on_target/$raw*100;
-		my $Print_GT_pct = sprintf("%.2f", $GT_pct);
-		$OT_pct = sprintf("%.2f", $OT_pct);
-		print "$on_target,$OT_pct,$Print_GT_pct,$IFI,";
+		}
+	}
+	close FILE;
+	$GT_pct = 100-($GT_pct/$num_targets*100);
+	my $OT_pct = 0;
+	if($raw > 0) {
+		$OT_pct = $on_target/$raw*100;
+	}
+
+	my $Print_GT_pct = sprintf("%.2f", $GT_pct);
+	$OT_pct = sprintf("%.2f", $OT_pct);
+	print "$on_target,$OT_pct,$Print_GT_pct,$IFI,";
 		
 	open (FILE, "<$samples") or die;
 	while (<FILE>) {
