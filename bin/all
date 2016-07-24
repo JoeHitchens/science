@@ -40,7 +40,6 @@ if cd "$dst" ; then
 			chmod u+w "$dst/$o"
 			gunzip "$dst/$o"
 		done
-		return;
 
 		echo "======= Hashing and counting ..."
 		for i in "$dst"/*.fastq ; do
