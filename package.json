@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "leven": "^2.0.0",
     "meet": "^2.0.0",
     "sleepless": "^2.3.4"
   }

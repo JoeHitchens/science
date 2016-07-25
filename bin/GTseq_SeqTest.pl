@@ -2,6 +2,10 @@
 #GTseq_SeqTest.pl by Nate Campbell
 #Test .hash file to see how many times loci fwd primers and probe seqs occur.
 
+#
+#	GTseq_SeqTest.pl "bin/AssayInfo.txt" "$i.hash" > "$i.csv"
+#
+
 use strict; use warnings;
 
 die "usage: provide <tab delimited txt file of locus, fwd, probe1, probe2 seqs> and <*.hash>\n" unless @ARGV == 2;
@@ -42,11 +46,12 @@ close SEQ;
 my $Targets = @assays;
 
 for (my $i = 0; $i < $Targets; $i++){
-$fwd_count[$i] = 0;
-$probe_count[$i] = 0;
-$both_count[$i] = 0;
 
-open(HASH, "<$ARGV[1]") or die "error reading $ARGV[1]\n";
+	$fwd_count[$i] = 0;
+	$probe_count[$i] = 0;
+	$both_count[$i] = 0;
+
+	open(HASH, "<$ARGV[1]") or die "error reading $ARGV[1]\n";
 
 	while (<HASH>) {
 		my $hash = $_;
@@ -55,22 +60,22 @@ open(HASH, "<$ARGV[1]") or die "error reading $ARGV[1]\n";
 		my @info = split(/;/, $hash);
 		my $count = $info[2];
 
-			if ($R1_seq =~ m/$fwd_seq[$i]/){
+		if ($R1_seq =~ m/$fwd_seq[$i]/) {
 			$count = $fwd_count[$i] + $count;
 			$fwd_count[$i] = $count;
-			}
-			$count = $info[2];
-			if ($R1_seq =~ m/$probe1[$i]|$probe2[$i]|$probe1RC[$i]|$probe2RC[$i]/){
+		}
+		$count = $info[2];
+		if ($R1_seq =~ m/$probe1[$i]|$probe2[$i]|$probe1RC[$i]|$probe2RC[$i]/) {
 			$count = $probe_count[$i] + $count;
 			$probe_count[$i] = $count;
-			}
-			$count = $info[2];
-			if (($R1_seq =~ m/$fwd_seq[$i]/) && ($R1_seq =~ m/$probe1[$i]|$probe2[$i]|$probe1RC[$i]|$probe2RC[$i]/)) {
+		}
+		$count = $info[2];
+		if (($R1_seq =~ m/$fwd_seq[$i]/) && ($R1_seq =~ m/$probe1[$i]|$probe2[$i]|$probe1RC[$i]|$probe2RC[$i]/)) {
 			$count = $both_count[$i] + $count;
 			$both_count[$i] = $count;
-			}
 		}
 	}
+}
 close HASH;
 
 # print "$Allele1_Count[0]\n"; #testing...

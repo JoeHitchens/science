@@ -36,7 +36,7 @@ foreach my $samples (@Files){
 		while (<READ>) {
 			if ($. == 1) {
 				# first line of file
-				my @info = split ",", $_;			# split the line up on comman boundaries
+				my @info = split ",", $_;			# split the line up on comma boundaries
 				my @info2 = split ":", $info[2];	# split the 3rd comma separated field on colons
 				$OT_reads = $info2[1];				# set $OT_reads to the 2nd colon separated field
 
@@ -101,6 +101,7 @@ foreach my $samples (@Files){
 	my $ratio = $cntrl_counts / $counts;
 	$ratio = sprintf("%.3f", $ratio);
 
+	# bug? one of the first 2 if()s will always evaluate true, so all the others never execute?
 	if ($cntrl_counts + $counts < 10) {
 		$sex_geno = "00";
 		$geno_class = "NA";

@@ -14,6 +14,10 @@
 # Possible null alleles can be summarized using the GTseq_ErrorReport_v3.pl script.  Keep in mind that some loci with flagged null alleles
 # could be the result of co-amplification of a paralogous locus.
 
+
+#
+# GTseq_Genotyper_v3.pl locus_file.csv something.fastq > something.genos
+
 use strict; use warnings;
 
 use String::Approx 'amatch';
@@ -81,7 +85,7 @@ while (<PROBES>) {
 	$TargetStart{$info[0]} = 20;
 	$ProbeLength{$info[0]} = 20;
 	$ArraySize++;
-		}
+}
 close PROBES;
 
 
@@ -100,12 +104,12 @@ close PROBES;
 		if(exists $F_PrimerKey{$FP_seq}) {
 			my $target = $F_PrimerKey{$FP_seq};
 			if ($R1_seq =~ m/$probeA1{$target}|$probeA1_RC{$target}/){
-			$TargetStart{$target} = $-[0];
-			$Allele1_Count{$target}++; $On_Target{$target}++; $OT_Reads++;
+				$TargetStart{$target} = $-[0];
+				$Allele1_Count{$target}++; $On_Target{$target}++; $OT_Reads++;
 			}
 			elsif ($R1_seq =~ m/$probeA2{$target}|$probeA2_RC{$target}/){
-			$TargetStart{$target} = $-[0];
-			$Allele2_Count{$target}++; $On_Target{$target}++; $OT_Reads++;
+				$TargetStart{$target} = $-[0];
+				$Allele2_Count{$target}++; $On_Target{$target}++; $OT_Reads++;
 			}
 			else {
 				$Off_Target{$target}++;
@@ -198,16 +202,39 @@ foreach my $loci (sort keys %F_Primer){
 	my $ratio = $A1fix/$A2fix;
 	$ratio = sprintf("%.3f", $ratio);
 
-	if ($Allele1_Count{$loci} + $Allele2_Count{$loci} < 10) {$geno = "00"; $genoclass = "NA";} #Set genotypes of low allele count loci to "00"
-	elsif ($ratio >= 10) {$geno = "$allele1name{$loci}$allele1name{$loci}"; $genoclass = "A1HOM"; #Allele1 Homozygotes
-		$HOM_CT = $HOM_CT + $Allele1_Count{$loci}; $BKGRD_CT = $BKGRD_CT + $Allele2_Count{$loci};} 
-	elsif (($ratio < 10) && ($ratio > 5)) {$geno = "00"; $genoclass = "NA"; #In-betweeners
-		$HOM_CT = $HOM_CT + $Allele1_Count{$loci}; $BKGRD_CT = $BKGRD_CT + $Allele2_Count{$loci};}
-	elsif ($ratio <= 0.1) {$geno = "$allele2name{$loci}$allele2name{$loci}"; $genoclass = "A2HOM"; #Allele2 Homozygotes
-		$HOM_CT = $HOM_CT + $Allele2_Count{$loci}; $BKGRD_CT = $BKGRD_CT + $Allele1_Count{$loci};} 
-	elsif ($ratio <= 0.5) {$geno = "00"; $genoclass = "NA"; #In-betweeners
-		$HOM_CT = $HOM_CT + $Allele2_Count{$loci}; $BKGRD_CT = $BKGRD_CT + $Allele1_Count{$loci};}
-	elsif ($ratio <= 2) {$geno = "$allele1name{$loci}$allele2name{$loci}"; $genoclass = "HET";} #Heterozygotes
+	if ($Allele1_Count{$loci} + $Allele2_Count{$loci} < 10) {
+		$geno = "00";
+		$genoclass = "NA";
+		#Set genotypes of low allele count loci to "00"
+	}
+	elsif ($ratio >= 10) {
+		$geno = "$allele1name{$loci}$allele1name{$loci}";
+		$genoclass = "A1HOM"; #Allele1 Homozygotes
+		$HOM_CT = $HOM_CT + $Allele1_Count{$loci};
+		$BKGRD_CT = $BKGRD_CT + $Allele2_Count{$loci};
+	} 
+	elsif (($ratio < 10) && ($ratio > 5)) {
+		$geno = "00";
+		$genoclass = "NA"; #In-betweeners
+		$HOM_CT = $HOM_CT + $Allele1_Count{$loci};
+		$BKGRD_CT = $BKGRD_CT + $Allele2_Count{$loci};
+	}
+	elsif ($ratio <= 0.1) {
+		$geno = "$allele2name{$loci}$allele2name{$loci}";
+		$genoclass = "A2HOM"; #Allele2 Homozygotes
+		$HOM_CT = $HOM_CT + $Allele2_Count{$loci};
+		$BKGRD_CT = $BKGRD_CT + $Allele1_Count{$loci};
+	} 
+	elsif ($ratio <= 0.5) {
+		$geno = "00";
+		$genoclass = "NA"; #In-betweeners
+		$HOM_CT = $HOM_CT + $Allele2_Count{$loci};
+		$BKGRD_CT = $BKGRD_CT + $Allele1_Count{$loci};
+	}
+	elsif ($ratio <= 2) {
+		$geno = "$allele1name{$loci}$allele2name{$loci}";
+		$genoclass = "HET"; #Heterozygotes
+	}
 	
 #Calculate the presence of possible null alleles using fuzzy match ratio...
 	
@@ -221,7 +248,7 @@ foreach my $loci (sort keys %F_Primer){
 	$On_Target_Per = sprintf("%.1f", $On_Target_Per);
 	$Per_of_AllOTreads = sprintf("%.3f", $Per_of_AllOTreads);
 	$print_line{$loci} = "$loci,$allele1name{$loci}=$Allele1_Count{$loci},$allele2name{$loci}=$Allele2_Count{$loci},$ratio,$geno,$genoclass,$A1_corr{$loci},$A2_corr{$loci},$On_Target{$loci},$On_Target_Per,$Per_of_AllOTreads,$Null_Error{$loci},$fuzzy_match{$loci}";
-		}
+}
 		
 if ($HOM_CT == 0) {$HOM_CT = 1}
 $IFI = $BKGRD_CT/$HOM_CT * 100;
