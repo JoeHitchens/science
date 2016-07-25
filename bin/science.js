@@ -182,14 +182,6 @@ do_science = function(inpath, cb) {
 			probe2rc.push(rev_comp(cols[3]));
 
 		});
-		/*for(var i = 0; i < assays.length; i++) {
-			log("asssays["+i+"] = "+assays[i]);
-			log("fwd_seq["+i+"] = "+fwd_seq[i]);
-			log("probe1["+i+"] = "+probe1[i]);
-			log("probe2["+i+"] = "+probe2[i]);
-			log("probe1rc["+i+"] = "+probe1rc[i]);
-			log("probe2rc["+i+"] = "+probe2rc[i]);
-		}*/
 
 
 		var fwd_count = [];
@@ -197,19 +189,23 @@ do_science = function(inpath, cb) {
 		var both_count = [];
 
 		for(var i = 0; i < assays.length; i++) {
-			fwd_count[i] = probe_count[i] = both_count[i] = 0;
+			fwd_count[i] = 0;
+			probe_count[i] = 0;
+			both_count[i] = 0;
+
+			var rx_f = new RegExp( fwd_seq[i] );
+			var rx_p = new RegExp( "("+probe1[i]+"|"+probe2[i]+"|"+probe1rc[i]+"|"+probe2rc[i]+")" );
 
 			counts.forEach(function(a) {
 				var r1_seq = a[0];		// nucleotide sequence
 				var count = a[1];		// # of occurances
 
-				var m1 = r1_seq.match( fwd_seq[i] );
+				var m1 = rx_f.test(r1_seq);
 				if( m1 ) {
 					fwd_count += count;
 				}
 
-				var re = new RegExp( "("+probe1[i]+"|"+probe2[i]+"|"+probe1rc[i]+"|"+probe2rc[i]+")" );
-				var m2 = re.test( r1_seq );
+				var m2 = rx_p.test( r1_seq );
 				if(m2) {
 					probe_count[i] += count;
 				}
@@ -220,14 +216,11 @@ do_science = function(inpath, cb) {
 
 			});
 		}
-		/*for(var i = 0; i < assays.length; i++) {
-			log( [assays[i],fwd_count[i],probe_count[i],both_count[i]].join(",") );
-		}*/
 
 		// ---------- write out csv  ... ?
 		var fd = fs.openSync( outpath + ".hash.csv", "w" );
 		for(var i = 0; i < assays.length; i++) {
-			fs.writeSync( fd, [assays[i],fwd_count[i],probe_count[i],both_count[i]].join(",") );
+			fs.writeSync( fd, [assays[i],fwd_count[i],probe_count[i],both_count[i]].join(",") + "\n" );
 		}
 		fs.close(fd);
 
