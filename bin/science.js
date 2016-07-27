@@ -129,6 +129,7 @@ do_science = function(inpath, cb) {
 		delete lines;
 		log("seqs: "+seqs.length);
 
+		log("hashing");
 		var hash = {};
 		for(var i = 0; i < seqs.length; i++) {
 			var seq = seqs[i];
@@ -154,6 +155,7 @@ do_science = function(inpath, cb) {
 			fs.writeSync(fd, ">;" + (i + 1) + ";" + a[1] + "\n" + a[0] + "\n");
 		});
 		fs.close(fd);
+		log("done hashing");
 
 
 		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
@@ -174,12 +176,12 @@ do_science = function(inpath, cb) {
 
 			var cols = line.split( /\s+/ );
 
-			assays.push(cols[0]);
-			fwd_seq.push(cols[1]);
-			probe1.push(cols[2]);
-			probe2.push(cols[3]);
-			probe1rc.push(rev_comp(cols[2]));
-			probe2rc.push(rev_comp(cols[3]));
+			assays.push(cols[0].trim());
+			fwd_seq.push(cols[1].trim());
+			probe1.push(cols[2].trim());
+			probe2.push(cols[3].trim());
+			probe1rc.push(rev_comp(cols[2].trim()));
+			probe2rc.push(rev_comp(cols[3].trim()));
 
 		});
 
@@ -193,6 +195,7 @@ do_science = function(inpath, cb) {
 			probe_count[i] = 0;
 			both_count[i] = 0;
 
+// XXX bug ... 
 			var rx_f = new RegExp( fwd_seq[i] );
 			var rx_p = new RegExp( "("+probe1[i]+"|"+probe2[i]+"|"+probe1rc[i]+"|"+probe2rc[i]+")" );
 

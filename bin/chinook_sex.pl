@@ -64,13 +64,20 @@ foreach my $samples (@Files){
 		my $info_line2 = <FILE>;	# 3 ...
 		my $qual_line = <FILE>;		# 4
 
-		if($seq_line =~ m/^GGTCTTGCAGTCAGGAGAGG/) {
+
+		# Fwd = CACAACATGAGCTCATGGG
+		# Y - CCTACCAAGTACA
+		# X - CAGAATTAGCTTTGGACATT
+
+		# if($seq_line =~ m/^GGTCTTGCAGTCAGGAGAGG/) {
+		if($seq_line =~ m/^CACAACATGAGCTCATGGG/) {
 			# 2nd line begins with the sequence
 			$primer_counts++;
 		}
 
 		# XXX move this up into if() above to avoid redundant first match?
-		if(($seq_line =~ m/^GGTCTTGCAGTCAGGAGAGG/) && ($seq_line =~ m/TCAGCGAAGTGGAGAT/)) {
+		#if(($seq_line =~ m/^GGTCTTGCAGTCAGGAGAGG/) && ($seq_line =~ m/TCAGCGAAGTGGAGAT/)) {
+		if(($seq_line =~ m/^CACAACATGAGCTCATGGG/) && ($seq_line =~ m/CCTACCAAGTACA/)) {
 			# 2nd line begins with the first sequence AND "contains" the second sequence (anywhere)
 			$counts++;
 		}
@@ -101,7 +108,6 @@ foreach my $samples (@Files){
 	my $ratio = $cntrl_counts / $counts;
 	$ratio = sprintf("%.3f", $ratio);
 
-	# bug? one of the first 2 if()s will always evaluate true, so all the others never execute?
 	if ($cntrl_counts + $counts < 10) {
 		$sex_geno = "00";
 		$geno_class = "NA";

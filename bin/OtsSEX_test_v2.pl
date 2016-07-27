@@ -39,8 +39,12 @@ foreach my $samples (@Files){
 		my $seq_line = <FILE>;
 		my $info_line2 = <FILE>;
 		my $qual_line = <FILE>;
-		if($seq_line =~ m/^GGTCTTGCAGTCAGGAGAGG/) {$primer_counts++}
-		if(($seq_line =~ m/^GGTCTTGCAGTCAGGAGAGG/) && ($seq_line =~ m/TCAGCGAAGTGGAGAT/)) {$counts++}
+		if($seq_line =~ m/^GGTCTTGCAGTCAGGAGAGG/) {
+			$primer_counts++
+		}
+		if(($seq_line =~ m/^GGTCTTGCAGTCAGGAGAGG/) && ($seq_line =~ m/TCAGCGAAGTGGAGAT/)) {
+			$counts++
+		}
 	}
 	if($primer_counts == 0) {$primer_counts = 1}
 	$primerOT = $counts/$primer_counts*100;
