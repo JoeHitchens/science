@@ -163,8 +163,8 @@ do_science = function(inpath, cb) {
 
 		// ---------- read in assay info file (tab delimted text)
 		var s = fs.readFileSync( assay_file, "utf8" );
-		var lines = s.trim().split( "\n" );
-		log("  assay info lines="+lines.length);
+		var assay_info = s.trim().split( "\n" );
+		log("  assay info lines="+assay_info.length);
 
 		var assays = [];
 		var fwd_seq = [];
@@ -172,7 +172,7 @@ do_science = function(inpath, cb) {
 		var probe2 = [];
 		var probe1rc = [];
 		var probe2rc = [];
-		lines.forEach(function(line) {
+		assay_info.forEach(function(line) {
 
 			var cols = line.split( /\s+/ );
 
@@ -251,10 +251,10 @@ do_science = function(inpath, cb) {
 		var raw_reads = 0;
 		var unmatched = 0;
 
-		var lines = fs.readFileSync(probe_file, "utf8").trim().split("\n");
-		log("  probe info lines="+lines.length);
+		var probe_info = fs.readFileSync(probe_file, "utf8").trim().split("\n");
+		log("  probe info lines="+probe_info.length);
 
-		lines.forEach(function(line) {
+		probe_info.forEach(function(line) {
 			var info = line.trim().split(",");
 			var k = info[0];
 
@@ -271,7 +271,6 @@ do_science = function(inpath, cb) {
 
 			a1_corr[k] = toFlt(info[6]);
 			a2_corr[k] = toFlt(info[7]);
-
 
 			// init allele counts to 0
 			allele1_count[k] = 0;
@@ -392,7 +391,7 @@ do_science = function(inpath, cb) {
 
 			if(sum_xy == 0)
 				sum_xy = 0.1;
-			
+
 			if(off_target[k] == 0)
 				off_target[k] = 0.1;
 
@@ -409,15 +408,98 @@ do_science = function(inpath, cb) {
 			hom_ct = 1;
 		ifi = (bkgrd_ct / hom_ct) * 100;
 		ifi = Math.round(ifi * 100) / 100;
-		log( "IFI_score:"+ifi);
+		log( "hom_ct="+hom_ct+" bkgrd_ct="+bkgrd_ct );
+		log( "IFI_score:"+ifi );
+
+
+		// sex stuff
+		var primer_counts = 0;
+		var counts = 0;
+
+		seqs.forEach(function(seq) {
+			var seq = seq.letters;
+			if(seq.indexOf("CACAACATGAGCTCATGGG") == 0) {
+				primer_counts += 1;
+				var rx = new RegExp( "CCTACCAAGTACA" );
+				if( rx.test(seq) ) {
+					counts++;
+				}
+			}
+		});
+
+		if(primer_counts == 0)
+			primer_counts = 1;
+
+		var primerot = (counts / primer_counts) * 100;
+		primerot = Math.round(primerot * 1000) / 1000;
+
+		var perofallotreads = (counts / ot_reads) * 100;
+		perofallotreads = Math.round(perofallotreads * 1000) / 1000;
+
+		var cntrl_counts = toInt(ot_reads * 0.004);
+		if(cntrl_counts == 0)
+			cntrl_counts = 1;
+
+		if(counts == 0)
+			counts = 1;
+
+		var ratio = Math.round((cntrl_counts / counts) * 1000) / 1000;
+
+		var sex_geno = "00";
+		var geno_class = "NA";
+
+		if(cntrl_counts + counts < 10) {
+			sex_geno = "00";
+			geno_class = "NA";
+		}
+		else
+		if(ratio >= 10) {
+			sex_geno = "XX";
+			geno_class = "A1HOM";
+		}
+		else
+		if(ratio <= 0.1) {
+			sex_geno = "XY";
+			geno_class = "A2HOM";
+		}
+		else
+		if(ratio <= 0.2) {
+			sex_geno = "00";
+			geno_class = "NA";
+		}
+		else
+		if(ratio <= 5) {
+			sex_geno = "XY";
+			geno_class = "HET";
+		}
 
 
 		var fd = fs.openSync( outpath + ".genos", "w" );
+
 		fs.writeSync( fd, [file,"Raw-Reads:"+raw_reads,"On-Target reads:"+ot_reads,"%On-Target:"+ot_percentage].join(",") + "\n" );
 		for(var k in f_primer) {
 			fs.writeSync( fd, print_line[k] + "\n" );
 		}
+
+		fs.writeSync( fd, "Ots_SEXY3-1,X="+cntrl_counts+",Y="+counts+","+ratio+","+sex_geno+","+geno_class+",0,0,"+counts+","+primerot+","+perofallotreads );
+
 		fs.close(fd);
+
+
+		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+
+
+		var flag = "S";
+		var geno_thresh = 0;
+
+
+		var out = [];
+		var s = "Sample,Raw Reads,On-Target Reads,%On-Target,%GT,IFI";
+		probe_info.forEach(function(pi) {
+			var a = pi.trim().split(",");
+			s += "," + a[0];
+		});
+		log(s);
 
 
 		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
