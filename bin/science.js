@@ -191,10 +191,43 @@ do_science = function(inpath, cb) {
 		var both_count = [];
 
 		for(var i = 0; i < assays.length; i++) {
+			var locus_name = assays[i];
+
 			fwd_count[i] = 0;
 			probe_count[i] = 0;
 			both_count[i] = 0;
 
+			var rx_f = new RegExp( fwd_seq[i] );
+			var rx_frc = new RegExp( rev_comp(fwd_seq[i]) );
+			var rx_p = new RegExp( "("+probe1[i]+"|"+probe2[i]+")" );
+			var rx_prc = new RegExp( "("+probe1rc[i]+"|"+probe2rc[i]+")" );
+
+			counts.forEach(function(a) {
+				var r1_seq = a[0];		// nucleotide sequence
+				var count = a[1];		// # of occurances
+
+				// unreversed
+				var m1 = rx_f.test(r1_seq) || rx_frc.test(r1_seq);
+				if( m1 ) {
+					fwd_count += count;
+					log("fwd  match: "+locus_name);
+				}
+
+				var m2 = rx_p.test( r1_seq ) || rx_prc.test( r1_seq );
+				if( m2 ) {
+					probe_count[i] += count;
+					log("probe match: "+locus_name);
+				}
+
+				if(m1 && m2) {
+					both_count[i] += count;
+					log("both match: "+locus_name);
+				}
+
+
+			});
+		}
+/*
 // XXX bug ... 
 			var rx_f = new RegExp( fwd_seq[i] );
 			var rx_p = new RegExp( "("+probe1[i]+"|"+probe2[i]+"|"+probe1rc[i]+"|"+probe2rc[i]+")" );
@@ -219,6 +252,7 @@ do_science = function(inpath, cb) {
 
 			});
 		}
+*/
 
 		// ---------- write out csv  ... ?
 		var fd = fs.openSync( outpath + ".hash.csv", "w" );
