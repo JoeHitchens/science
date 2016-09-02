@@ -210,18 +210,18 @@ do_science = function(inpath, cb) {
 				var m1 = rx_f.test(r1_seq) || rx_frc.test(r1_seq);
 				if( m1 ) {
 					fwd_count += count;
-					log("fwd  match: "+locus_name);
+					//log("fwd  match: "+locus_name);
 				}
 
 				var m2 = rx_p.test( r1_seq ) || rx_prc.test( r1_seq );
 				if( m2 ) {
 					probe_count[i] += count;
-					log("probe match: "+locus_name);
+					//log("probe match: "+locus_name);
 				}
 
 				if(m1 && m2) {
 					both_count[i] += count;
-					log("both match: "+locus_name);
+					//log("both match: "+locus_name);
 				}
 
 
