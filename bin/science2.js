@@ -37,60 +37,36 @@ data_in = process.argv[2] || "data_in";
 data_out = process.argv[3] || "data_out";
 assay_file = process.argv[4] || "assayinfo.txt";
 probe_file = process.argv[5] || "probeinfo.txt";
-//log("data_in="+data_in);
-//log("data_out="+data_out);
-//log("assay_file="+assay_file);
-//log("probe_file="+probe_file);
 
 
 // read in assay info file (tab delimted text)
-var data = fs.readFileSync( assay_file, "utf8" ).trim().split( "\n" );
-//log("  assay info lines="+data.length);
 var assays = [];
-//var fwd_seq = [];
-//var probe1 = [];
-//var probe2 = [];
-//var probe1rc = [];
-//var probe2rc = [];
-data.forEach(function(line) {
-
+fs.readFileSync( assay_file, "utf8" ).trim().split( "\n" ).forEach(function(line) {
 	var cols = line.split( /\s+/ );
 
-	var o = {};
+	var a = {};
 
-	o.name = cols[0].trim();
+	a.name = cols[0].trim();
 
-	o.fwd_seq = cols[1].trim();
-	o.fwd_seq_rc = rev_comp(o.fwd_seq);
+	a.fwd_seq = cols[1].trim();
+	a.fwd_seq_rc = rev_comp(a.fwd_seq);
 
-	o.probe1 = cols[2].trim();
-	o.probe1_rc = rev_comp(o.probe1);
+	a.probe1 = cols[2].trim();
+	a.probe1_rc = rev_comp(a.probe1);
 
-	o.probe2 = cols[3].trim();
-	o.probe2_rc = rev_comp(o.probe2);
+	a.probe2 = cols[3].trim();
+	a.probe2_rc = rev_comp(a.probe2);
 
-	o.fwd_count = 0;
-	o.probe_count = 0;
-	o.both_count = 0;
+	a.fwd_count = 0;
+	a.probe_count = 0;
+	a.both_count = 0;
 
-	assays.push(o);
-
-	/*var s = cols[0].trim();
-	assays.push(s);
-
-	var s = cols[1].trim();
-	fwd_seq.push(s);
-	fwd_seq_rc.push(rev_comp(s));
-
-	var s = cols[2].trim();
-	probe1.push(s);
-	probe1_rc.push(rev_comp(s));
-
-	var s = cols[3].trim();
-	probe2.push(s);
-	probe2_rc.push(rev_comp(s));
-	*/
-
+	assays.push(a);
+});
+assays.sort(function(a, b) {
+	if(a.name.toLowerCase() > b.name.toLowerCase()) return 1;
+	if(a.name.toLowerCase() < b.name.toLowerCase()) return -1;
+	return 0;
 });
 
 
@@ -111,12 +87,10 @@ var a1_corr = [];
 var a2_corr = [];
 var print_line = [];
 var ot_reads = 0;
-var raw_reads = 0;
+//var raw_reads = 0;
 var unmatched = 0;
 
 var probe_info = fs.readFileSync(probe_file, "utf8").trim().split("\n");
-//log("  probe info lines="+probe_info.length);
-
 probe_info.forEach(function(line) {
 	var info = line.trim().split(",");
 	var k = info[0];
@@ -200,9 +174,8 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 		}
 
 
-		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
-		// convert the raw fastq data into an array of objects, one per sequence.
-		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+// convert the raw fastq data into an array of objects, one per sequence.
+// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
 		// break the data into lines
 		var lines = data.trim().split("\n");
@@ -218,13 +191,13 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 			});
 		}
 		log("processing \""+file+"\" ("+sequences.length+" sequences)");
+
 		// 'sequences' now looks like: [ { sequence: "ACTG" }, { ... }, ... ]
 
 
 
-		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
-		// Build an array of counts, one entry per sequence, sorted by count, highest to lowest
-		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+// Build an array of counts, one entry per distinct sequence, sorted by count, highest to lowest
+// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
 		// Create a hash with one entry per sequence, where the sequence is the nucleotide sequence,
 		// and the value is the number of times that sequence appears in the fastq data.
@@ -248,7 +221,6 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 			if(a[1] > b[1]) return -1;
 			return 0;
 		});
-		// delete hash ?
 
 		// ---------- write out hashes to file
 		var fd = fs.openSync( outpath + ".hash", "w" );
@@ -256,44 +228,40 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 			fs.writeSync(fd, ">;" + (i + 1) + ";" + a[1] + "\n" + a[0] + "\n");
 		});
 		fs.close(fd);
-		//log("done hashing");
 
 		// 'sequence_counts' now looks like: [ [ "GTCA", 456 ], [ "ACTG", 123 ], ... ]
 
 
 
-		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
-		// count occurances of fwd sequence and it's RC, probes (and their RCs), and occurances of both
-		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+// count occurances of fwd sequence and it's RC, probes (and their RCs), and occurances of both
+// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
 		assays.forEach(function(a) {
 
-			var rx_fs = new RegExp( a.fwd_seq );
-			var rx_fs_rc = new RegExp( a.fwd_seq_rc );
-			var rx_p = new RegExp( "("+a.probe1+"|"+a.probe2+")" );
-			var rx_p_rc = new RegExp( "("+a.probe1_rc+"|"+a.probe2_rc+")" );
+			var rx_fp = new RegExp( a.fwd_seq );			// matches the forward primer sequence
+			var rx_fp_rc = new RegExp( a.fwd_seq_rc );		// matches the RC of the forward primer sequence
+			var rx_p1 = new RegExp( a.probe1 );				// matches the first probe sequence
+			var rx_p1_rc = new RegExp( a.probe1_rc );		// matches the RC of the first probe sequence
+			var rx_p2 = new RegExp( a.probe2 );				// ditto probe2
+			var rx_p2_rc = new RegExp( a.probe2_rc );		// and RC of probe2
 
-			sequence_counts.forEach(function(a) {
-				var seq = a[0];		// nucleotide sequence
-				var num = a[1];		// # of occurances
+			sequence_counts.forEach(function(sc) {
+				var seq = sc[0];		// nucleotide sequence
+				var num = sc[1];		// # of occurances
+				var m_f, m_p;
 
-				var m1 = rx_fs.test(seq) || rx_fs_rc.test(seq);
-				if( m1 ) {
+				m_f = rx_fp.test(seq) || rx_fp_rc.test(seq);	// m_f is true if fwd primer or its RC is found
+				m_p = rx_p1.test( seq ) || rx_p2.test( seq ) || rx_p1_rc.test( seq ) || rx_p2_rc.test( seq );	// m_p is true if either probe1 or probe2 (or their RCs) are found
+
+				if(m_f) {
 					a.fwd_count += num;
-					//log("fwd  match: "+a.name);
 				}
-
-				var m2 = rx_p.test( seq ) || rx_p_rc.test( seq );
-				if( m2 ) {
+				if(m_p) {
 					a.probe_count += num;
-					//log("probe match: "+a.name);
 				}
-
-				if(m1 && m2) {
+				if(m_f && m_p) {
 					a.both_count += num;
-					//log("both match: "+a.name);
 				}
-
 
 			});
 		});
@@ -308,27 +276,29 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 
 
 
-		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
-		// genotyper 
-		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+// Let's give a big hand to the world renowned genotyper!
+// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
-		// count alleles
+		// count alleles, ontarget, and off target reads
 		sequences.forEach(function(seq) {
 			var r1_seq = seq.sequence;
 			var fp_seq = r1_seq.substr(0, 14);
-			raw_reads += 1;
+			//raw_reads += 1;
 			if(f_primerkey[fp_seq] !== undefined) {
 				var target = f_primerkey[fp_seq];
 
-				var rx1 = new RegExp( "(" + probea1[target] + "|" + probea1_rc[target] + ")" );
-				var rx2 = new RegExp( "(" + probea2[target] + "|" + probea2_rc[target] + ")" );
-				if(rx1.test(r1_seq)) {
+				var rx_p1 = new RegExp( probea1[target] );
+				var rx_p1rc = new RegExp( probea1_rc[target] );
+				var rx_p2 = new RegExp( probea2[target] );
+				var rx_p2rc = new RegExp( probea2_rc[target] );
+
+				if( rx_p1.test(r1_seq) || rx_p1rc.test(r1_seq) ) {
 					allele1_count[target] += 1;
 					on_target[target] += 1;
 					ot_reads += 1;
 				}
 				else
-				if(rx2.test(r1_seq)) {
+				if( rx_p2.test(r1_seq) || rx_p2rc.test(r1_seq) ) {
 					allele2_count[target] += 1;
 					on_target[target] += 1;
 					ot_reads += 1;
@@ -346,14 +316,13 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 			}
 
 		});
-		//log("unmatched="+unmatched);
 
 		if(ot_reads == 0)
 			ot_reads = 1;
 
 		var ot_percentage = 0;
-		if(raw_reads > 0) 
-			ot_percentage = (Math.round(ot_reads / raw_reads) * 1000) / 10;
+		if(sequences.length > 0) 
+			ot_percentage = (Math.round(ot_reads / sequences.length) * 1000) / 10;
 
 
 		var hom_ct = 0;
@@ -431,7 +400,7 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 
 			on_target_per = Math.round(on_target_per * 10) / 10;
 			per_of_allotreads = Math.round(per_of_allotreads * 1000) / 1000;
-			print_line[k] = [k, allele1name[k]+"="+allele1_count[k], allele2name[k]+"="+allele2_count[k], ratio, geno, genoclass, a1_corr[k], a2_corr[k], on_target[k], on_target_per, per_of_allotreads, 0, 0].join(",");
+			print_line[k] = [k, allele1name[k]+"="+allele1_count[k], allele2name[k]+"="+allele2_count[k], ratio, geno, genoclass, a1_corr[k], a2_corr[k], on_target[k], on_target_per, per_of_allotreads, "\"-\"", "\"-\""].join(",");
 
 		}
 
@@ -443,7 +412,7 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 		log( "IFI_score:"+ifi );
 
 
-		// sex stuff
+		// do the sexy business
 		var primer_counts = 0;
 		var counts = 0;
 
@@ -505,15 +474,13 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 		}
 
 
+		// write out the .genos file
 		var fd = fs.openSync( outpath + ".genos", "w" );
-
-		fs.writeSync( fd, [file,"Raw-Reads:"+raw_reads,"On-Target reads:"+ot_reads,"%On-Target:"+ot_percentage].join(",") + "\n" );
+		fs.writeSync( fd, [file,"Raw-Reads:"+sequences.length,"On-Target reads:"+ot_reads,"%On-Target:"+ot_percentage,"IFI_score:--"].join(",") + "\n" );
 		for(var k in f_primer) {
 			fs.writeSync( fd, print_line[k] + "\n" );
 		}
-
 		fs.writeSync( fd, "Ots_SEXY3-1,X="+cntrl_counts+",Y="+counts+","+ratio+","+sex_geno+","+geno_class+",0,0,"+counts+","+primerot+","+perofallotreads );
-
 		fs.close(fd);
 
 
