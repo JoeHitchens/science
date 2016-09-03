@@ -8,17 +8,7 @@ require("sleepless");
 require("meet");
 
 
-
-data_in = process.argv[2] || "data_in";
-data_out = process.argv[3] || "data_out";
-assay_file = process.argv[4] || "assayinfo.txt";
-probe_file = process.argv[5] || "probeinfo.txt";
-log("data_in="+data_in);
-log("data_out="+data_out);
-log("assay_file="+assay_file);
-log("probe_file="+probe_file);
-
-
+// return a reversed version of a string: srev = "foo".reverse();	// "oof"
 String.prototype.reverse = function() {
 	var o = '';
 	for (var i = this.length - 1; i >= 0; i--)
@@ -27,59 +17,7 @@ String.prototype.reverse = function() {
 }
 
 
-// scan data_in for an files, in any dirs that end with .fasq.gz
-cmd = "find \""+data_in+"\" | grep .fastq.gz";
-exec(cmd, function(err, stdout, stderr) {
-	throwIf(err);
-
-	files = stdout.trim().split("\n");
-
-	log("Directory "+data_in+" contains "+files.length+" .fastq.gz files");
-
-	// queue each .fastq.gz for processing by do_science()
-	var m = new Meet();
-	//files = [files[0], files[1]];
-	files.forEach(function(file) {
-		m.queue(do_science, file);
-	});
-	m.allDone(process.exit);
-
-});
-
-
-gunzip = function(inpath, outpath, cb) {
-
-	// xxx make the zlib version of this work
-
-	var cmd = "gunzip < \"" + inpath + "\" > \"" + outpath + "\"";
-	exec(cmd, function(err, stdout, stderr) {
-		throwIf(err);
-		fs.readFile(outpath, "utf8", function(err, text) {
-			throwIf(err);
-			cb(text);
-		});
-	});
-
-	/*
-	var reader = fs.createReadStream(inpath);
-	var writer = fs.createWriteStream(outpath);
-	var unzipper = zlib.createGunzip();
-	reader.pipe(unzipper).pipe(writer);
-	reader.on("end", function() {
-		log("r end");
-	});
-	writer.on("end", function() {
-		log("w end");
-	});
-	reader.on("error", function(err) {
-		log("r error: "+err);
-	});
-	writer.on("error", function(err) {
-		log("w error: "+err);
-	});
-	*/
-}
-
+// return the reverse complement version of the nucleotide sequence in "s"
 var rev_comp = function(s, b) {
 	return s
 		.reverse()
@@ -94,55 +32,218 @@ var rev_comp = function(s, b) {
 		.toUpperCase();
 }
 
-do_science = function(inpath, cb) {
-	var file = path.basename(inpath);
-	var outpath = data_out + "/" + file.replace( /\.gz$/, "" );
-	
-	log("inpath: "+inpath);
-	log("outpath: "+outpath);
+
+data_in = process.argv[2] || "data_in";
+data_out = process.argv[3] || "data_out";
+assay_file = process.argv[4] || "assayinfo.txt";
+probe_file = process.argv[5] || "probeinfo.txt";
+//log("data_in="+data_in);
+//log("data_out="+data_out);
+//log("assay_file="+assay_file);
+//log("probe_file="+probe_file);
 
 
-	gunzip(inpath, outpath, function(text) {
-		log("text = "+text.length);
+// read in assay info file (tab delimted text)
+var data = fs.readFileSync( assay_file, "utf8" ).trim().split( "\n" );
+//log("  assay info lines="+data.length);
+var assays = [];
+//var fwd_seq = [];
+//var probe1 = [];
+//var probe2 = [];
+//var probe1rc = [];
+//var probe2rc = [];
+data.forEach(function(line) {
 
-		if(text == "") {
-			log("(empty)");
+	var cols = line.split( /\s+/ );
+
+	var o = {};
+
+	o.name = cols[0].trim();
+
+	o.fwd_seq = cols[1].trim();
+	o.fwd_seq_rc = rev_comp(o.fwd_seq);
+
+	o.probe1 = cols[2].trim();
+	o.probe1_rc = rev_comp(o.probe1);
+
+	o.probe2 = cols[3].trim();
+	o.probe2_rc = rev_comp(o.probe2);
+
+	o.fwd_count = 0;
+	o.probe_count = 0;
+	o.both_count = 0;
+
+	assays.push(o);
+
+	/*var s = cols[0].trim();
+	assays.push(s);
+
+	var s = cols[1].trim();
+	fwd_seq.push(s);
+	fwd_seq_rc.push(rev_comp(s));
+
+	var s = cols[2].trim();
+	probe1.push(s);
+	probe1_rc.push(rev_comp(s));
+
+	var s = cols[3].trim();
+	probe2.push(s);
+	probe2_rc.push(rev_comp(s));
+	*/
+
+});
+
+
+
+var on_target = [];
+var off_target = [];
+var f_primer = [];
+var f_primerkey = [];
+var allele1name = [];
+var allele2name = [];
+var probea1 = [];
+var probea2 = [];
+var probea1_rc = [];
+var probea2_rc = [];
+var allele1_count = [];
+var allele2_count = [];
+var a1_corr = [];
+var a2_corr = [];
+var print_line = [];
+var ot_reads = 0;
+var raw_reads = 0;
+var unmatched = 0;
+
+var probe_info = fs.readFileSync(probe_file, "utf8").trim().split("\n");
+//log("  probe info lines="+probe_info.length);
+
+probe_info.forEach(function(line) {
+	var info = line.trim().split(",");
+	var k = info[0];
+
+	f_primer[k] = info[5].substr(0, 14);		// why only 14 ?
+	f_primerkey[f_primer[k]] = k;
+
+	allele1name[k] = info[1];
+	allele2name[k] = info[2];
+
+	probea1[k] = info[3];
+	probea2[k] = info[4];
+	probea1_rc[k] = rev_comp(info[3])
+	probea2_rc[k] = rev_comp(info[4]);
+
+	a1_corr[k] = toFlt(info[6]);
+	a2_corr[k] = toFlt(info[7]);
+
+	// init allele counts to 0
+	allele1_count[k] = 0;
+	allele2_count[k] = 0;
+	on_target[k] = 0;
+	off_target[k] = 0;
+});
+
+
+
+
+// scan data_in for any files, in any sub-directories that end with .fasq.gz
+// XXX This exec() won't work on windows; walk the tree manually instead
+cmd = "find \""+data_in+"\" | grep .fastq.gz";
+exec(cmd, function(err, stdout, stderr) {
+	throwIf(err);
+
+	files = stdout.trim().split("\n");		// split the output of the find command into an array of lines, on per file
+	log("Input directory \""+data_in+"\" contains "+files.length+" .fastq.gz files");
+
+	// queue each .fastq.gz for processing by do_science()
+	var m = new Meet();
+	files.forEach(function(file) {
+		m.queue(do_science, file);
+	});
+	m.allDone(process.exit);		// exit program when all are done.
+
+});
+
+
+// read the compressed file at "inpath" and write it back out to "outpath", call cb() when done
+gunzip = function(inpath, outpath, cb) {
+
+	// XXX This exec() won't work on windows; make the zlib version of this work
+	var cmd = "gunzip < \"" + inpath + "\" > \"" + outpath + "\"";
+	exec(cmd, function(err, stdout, stderr) {
+		throwIf(err);
+		fs.readFile(outpath, "utf8", function(err, text) {		// read in the uncompressed file as 'text'
+			throwIf(err);
+			fs.unlink(outpath, function(err) {					// delete uncompressed file from disk (it was temporary)
+				throwIf(err);
+				cb(text);										// pass 'text' to the callback function
+			})
+		});
+	});
+
+}
+
+
+// process a single fish from the file at "inpath"; call cb() when finished.
+do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
+
+	var file = path.basename(inpath);							// file: "file.gz"
+	var outpath = data_out + "/" + file.replace( /\.gz$/, "" );	// outpath: "data_out/file"
+
+
+	// uncompress and load in the fastq data
+	gunzip(inpath, outpath, function(data) {
+
+		if(data == "") {
+			log("skipping empty input file \""+file+"\".");
 			cb();
 			return;
 		}
 
 
-		var lines = text.trim().split("\n");
-		log("lines: "+lines.length);
-		delete text;
+		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+		// convert the raw fastq data into an array of objects, one per sequence.
+		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
-		var seqs = [];
+		// break the data into lines
+		var lines = data.trim().split("\n");
+
+		var sequences = [];
 		for(var i = 0; i < lines.length; i += 4) {
-			throwIf(lines[i+2].trim() != "+");
-			seqs.push({
-				// info: lines[i+0].trim(),
-				letters: lines[i+1].trim(),
-				// plus: lines[i+2].trim(),
-				quality: lines[i+3].trim(),
+			throwIf(lines[i+2].trim() != "+");	// sanity check - expect this line to contain just a "+" sign
+			sequences.push({
+				// info: lines[i+0].trim(),		// unused
+				sequence: lines[i+1].trim(),
+				// plus: lines[i+2].trim(),		// unused
+				//quality: lines[i+3].trim(),	// unused
 			});
 		}
-		delete lines;
-		log("seqs: "+seqs.length);
+		log("processing \""+file+"\" ("+sequences.length+" sequences)");
+		// 'sequences' now looks like: [ { sequence: "ACTG" }, { ... }, ... ]
 
-		log("hashing");
+
+
+		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+		// Build an array of counts, one entry per sequence, sorted by count, highest to lowest
+		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+
+		// Create a hash with one entry per sequence, where the sequence is the nucleotide sequence,
+		// and the value is the number of times that sequence appears in the fastq data.
 		var hash = {};
-		for(var i = 0; i < seqs.length; i++) {
-			var seq = seqs[i];
-			var key = seq.letters;
+		for(var i = 0; i < sequences.length; i++) {
+			var key = sequences[i].sequence;
 			hash[key] = toInt(hash[key]) + 1;
 		}
+		// hash: { "ACTG...": 123, "GTCA...": 456, ... }
 
-		var counts = [];
+		// convert the hash into an array.
+		// Each array entry is itself an array, first entry being the sequence, and second being the count.
+		var sequence_counts = [];
 		for(var k in hash) { 
-			counts.push([k, hash[k]]);
+			sequence_counts.push([k, hash[k]]);
 		}
 
-		counts = counts.sort(function(a, b) {
+		// sort them
+		sequence_counts.sort(function(a, b) {
 			if(a[1] < b[1]) return  1;
 			if(a[1] > b[1]) return -1;
 			return 0;
@@ -151,172 +252,69 @@ do_science = function(inpath, cb) {
 
 		// ---------- write out hashes to file
 		var fd = fs.openSync( outpath + ".hash", "w" );
-		counts.forEach(function(a, i) {
+		sequence_counts.forEach(function(a, i) {
 			fs.writeSync(fd, ">;" + (i + 1) + ";" + a[1] + "\n" + a[0] + "\n");
 		});
 		fs.close(fd);
-		log("done hashing");
+		//log("done hashing");
+
+		// 'sequence_counts' now looks like: [ [ "GTCA", 456 ], [ "ACTG", 123 ], ... ]
+
 
 
 		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+		// count occurances of fwd sequence and it's RC, probes (and their RCs), and occurances of both
+		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+
+		assays.forEach(function(a) {
+
+			var rx_fs = new RegExp( a.fwd_seq );
+			var rx_fs_rc = new RegExp( a.fwd_seq_rc );
+			var rx_p = new RegExp( "("+a.probe1+"|"+a.probe2+")" );
+			var rx_p_rc = new RegExp( "("+a.probe1_rc+"|"+a.probe2_rc+")" );
+
+			sequence_counts.forEach(function(a) {
+				var seq = a[0];		// nucleotide sequence
+				var num = a[1];		// # of occurances
+
+				var m1 = rx_fs.test(seq) || rx_fs_rc.test(seq);
+				if( m1 ) {
+					a.fwd_count += num;
+					//log("fwd  match: "+a.name);
+				}
+
+				var m2 = rx_p.test( seq ) || rx_p_rc.test( seq );
+				if( m2 ) {
+					a.probe_count += num;
+					//log("probe match: "+a.name);
+				}
+
+				if(m1 && m2) {
+					a.both_count += num;
+					//log("both match: "+a.name);
+				}
 
 
-		// ---------- read in assay info file (tab delimted text)
-		var s = fs.readFileSync( assay_file, "utf8" );
-		var assay_info = s.trim().split( "\n" );
-		log("  assay info lines="+assay_info.length);
-
-		var assays = [];
-		var fwd_seq = [];
-		var probe1 = [];
-		var probe2 = [];
-		var probe1rc = [];
-		var probe2rc = [];
-		assay_info.forEach(function(line) {
-
-			var cols = line.split( /\s+/ );
-
-			assays.push(cols[0].trim());
-			fwd_seq.push(cols[1].trim());
-			probe1.push(cols[2].trim());
-			probe2.push(cols[3].trim());
-			probe1rc.push(rev_comp(cols[2].trim()));
-			probe2rc.push(rev_comp(cols[3].trim()));
-
+			});
 		});
 
-
-		var fwd_count = [];
-		var probe_count = [];
-		var both_count = [];
-
-		for(var i = 0; i < assays.length; i++) {
-			var locus_name = assays[i];
-
-			fwd_count[i] = 0;
-			probe_count[i] = 0;
-			both_count[i] = 0;
-
-			var rx_f = new RegExp( fwd_seq[i] );
-			var rx_frc = new RegExp( rev_comp(fwd_seq[i]) );
-			var rx_p = new RegExp( "("+probe1[i]+"|"+probe2[i]+")" );
-			var rx_prc = new RegExp( "("+probe1rc[i]+"|"+probe2rc[i]+")" );
-
-			counts.forEach(function(a) {
-				var r1_seq = a[0];		// nucleotide sequence
-				var count = a[1];		// # of occurances
-
-				// unreversed
-				var m1 = rx_f.test(r1_seq) || rx_frc.test(r1_seq);
-				if( m1 ) {
-					fwd_count += count;
-					//log("fwd  match: "+locus_name);
-				}
-
-				var m2 = rx_p.test( r1_seq ) || rx_prc.test( r1_seq );
-				if( m2 ) {
-					probe_count[i] += count;
-					//log("probe match: "+locus_name);
-				}
-
-				if(m1 && m2) {
-					both_count[i] += count;
-					//log("both match: "+locus_name);
-				}
-
-
-			});
-		}
-/*
-// XXX bug ... 
-			var rx_f = new RegExp( fwd_seq[i] );
-			var rx_p = new RegExp( "("+probe1[i]+"|"+probe2[i]+"|"+probe1rc[i]+"|"+probe2rc[i]+")" );
-
-			counts.forEach(function(a) {
-				var r1_seq = a[0];		// nucleotide sequence
-				var count = a[1];		// # of occurances
-
-				var m1 = rx_f.test(r1_seq);
-				if( m1 ) {
-					fwd_count += count;
-				}
-
-				var m2 = rx_p.test( r1_seq );
-				if(m2) {
-					probe_count[i] += count;
-				}
-
-				if(m1 && m2) {
-					both_count[i] += count;
-				}
-
-			});
-		}
-*/
-
-		// ---------- write out csv  ... ?
+		// write counts out to csv file
 		var fd = fs.openSync( outpath + ".hash.csv", "w" );
-		for(var i = 0; i < assays.length; i++) {
-			fs.writeSync( fd, [assays[i],fwd_count[i],probe_count[i],both_count[i]].join(",") + "\n" );
-		}
+		fs.writeSync( fd, [ "Name", "Fwd count", "Probe count", "Both count" ].join(",") + "\n" );
+		assays.forEach(function(a) {
+			fs.writeSync( fd, [ a.name, a.fwd_count, a.probe_count, a.both_count ].join(",") + "\n" );
+		});
 		fs.close(fd);
 
 
 
 		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 		// genotyper 
-
-		var on_target = [];
-		var off_target = [];
-		var f_primer = [];
-		var f_primerkey = [];
-		var allele1name = [];
-		var allele2name = [];
-		var probea1 = [];
-		var probea2 = [];
-		var probea1_rc = [];
-		var probea2_rc = [];
-		var allele1_count = [];
-		var allele2_count = [];
-		var a1_corr = [];
-		var a2_corr = [];
-		var print_line = [];
-		var ot_reads = 0;
-		var raw_reads = 0;
-		var unmatched = 0;
-
-		var probe_info = fs.readFileSync(probe_file, "utf8").trim().split("\n");
-		log("  probe info lines="+probe_info.length);
-
-		probe_info.forEach(function(line) {
-			var info = line.trim().split(",");
-			var k = info[0];
-
-			f_primer[k] = info[5].substr(0, 14);		// why only 14 ?
-			f_primerkey[f_primer[k]] = k;
-
-			allele1name[k] = info[1];
-			allele2name[k] = info[2];
-
-			probea1[k] = info[3];
-			probea2[k] = info[4];
-			probea1_rc[k] = rev_comp(info[3])
-			probea2_rc[k] = rev_comp(info[4]);
-
-			a1_corr[k] = toFlt(info[6]);
-			a2_corr[k] = toFlt(info[7]);
-
-			// init allele counts to 0
-			allele1_count[k] = 0;
-			allele2_count[k] = 0;
-			on_target[k] = 0;
-			off_target[k] = 0;
-		});
-
+		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
 		// count alleles
-		seqs.forEach(function(seq) {
-			var r1_seq = seq.letters;
+		sequences.forEach(function(seq) {
+			var r1_seq = seq.sequence;
 			var fp_seq = r1_seq.substr(0, 14);
 			raw_reads += 1;
 			if(f_primerkey[fp_seq] !== undefined) {
@@ -345,11 +343,10 @@ do_science = function(inpath, cb) {
 			}
 			else {
 				unmatched += 1;
-				//log("----"+fp_seq);
 			}
 
 		});
-		log("unmatched="+unmatched);
+		//log("unmatched="+unmatched);
 
 		if(ot_reads == 0)
 			ot_reads = 1;
@@ -450,8 +447,8 @@ do_science = function(inpath, cb) {
 		var primer_counts = 0;
 		var counts = 0;
 
-		seqs.forEach(function(seq) {
-			var seq = seq.letters;
+		sequences.forEach(function(seq) {
+			var seq = seq.sequence;
 			if(seq.indexOf("CACAACATGAGCTCATGGG") == 0) {
 				primer_counts += 1;
 				var rx = new RegExp( "CCTACCAAGTACA" );
