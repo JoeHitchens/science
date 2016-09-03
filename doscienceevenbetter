@@ -1,0 +1,8 @@
+#!/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$DIR"
+
+/usr/local/bin/node "$DIR"/bin/science.js data_in data_out bin/AssayInfo.txt bin/Ots_GTseq95_ProbeSeqs_v2.csv
+
+
