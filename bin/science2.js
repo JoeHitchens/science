@@ -33,6 +33,15 @@ var rev_comp = function(s, b) {
 }
 
 
+// mk_pct(6, 2) returns 33.33
+var mk_pct = function(t, f) {
+	if(f <= 0) {
+		return 0;
+	}
+	return Math.round((f / t) * 10000) / 100;
+}
+
+
 data_in = process.argv[2] || "data_in";
 data_out = process.argv[3] || "data_out";
 assay_file = process.argv[4] || "assayinfo.txt";
@@ -87,7 +96,6 @@ var a1_corr = [];
 var a2_corr = [];
 var print_line = [];
 var ot_reads = 0;
-//var raw_reads = 0;
 var unmatched = 0;
 
 var probe_info = fs.readFileSync(probe_file, "utf8").trim().split("\n");
@@ -133,6 +141,7 @@ exec(cmd, function(err, stdout, stderr) {
 	files.forEach(function(file) {
 		m.queue(do_science, file);
 	});
+	m.queue(geno_compile);
 	m.allDone(process.exit);		// exit program when all are done.
 
 });
@@ -157,8 +166,8 @@ gunzip = function(inpath, outpath, cb) {
 }
 
 
-// process a single fish from the file at "inpath"; call cb() when finished.
-do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
+// process a single fish from the file at "inpath"; call finish() when finished.
+do_science = function(inpath, finish) {								// inpath: "foo/bar/file.gz"
 
 	var file = path.basename(inpath);							// file: "file.gz"
 	var outpath = data_out + "/" + file.replace( /\.gz$/, "" );	// outpath: "data_out/file"
@@ -169,12 +178,12 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 
 		if(data == "") {
 			log("skipping empty input file \""+file+"\".");
-			cb();
+			finish();
 			return;
 		}
 
 
-// convert the raw fastq data into an array of objects, one per sequence.
+// convert the fastq data into an array of objects, one per sequence.
 // -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
 		// break the data into lines
@@ -222,7 +231,7 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 			return 0;
 		});
 
-		// ---------- write out hashes to file
+		// write out hashes to file
 		var fd = fs.openSync( outpath + ".hash", "w" );
 		sequence_counts.forEach(function(a, i) {
 			fs.writeSync(fd, ">;" + (i + 1) + ";" + a[1] + "\n" + a[0] + "\n");
@@ -283,7 +292,6 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 		sequences.forEach(function(seq) {
 			var r1_seq = seq.sequence;
 			var fp_seq = r1_seq.substr(0, 14);
-			//raw_reads += 1;
 			if(f_primerkey[fp_seq] !== undefined) {
 				var target = f_primerkey[fp_seq];
 
@@ -408,7 +416,7 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 			hom_ct = 1;
 		ifi = (bkgrd_ct / hom_ct) * 100;
 		ifi = Math.round(ifi * 100) / 100;
-		log( "hom_ct="+hom_ct+" bkgrd_ct="+bkgrd_ct );
+		//log( "hom_ct="+hom_ct+" bkgrd_ct="+bkgrd_ct );
 		log( "IFI_score:"+ifi );
 
 
@@ -476,7 +484,7 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 
 		// write out the .genos file
 		var fd = fs.openSync( outpath + ".genos", "w" );
-		fs.writeSync( fd, [file,"Raw-Reads:"+sequences.length,"On-Target reads:"+ot_reads,"%On-Target:"+ot_percentage,"IFI_score:--"].join(",") + "\n" );
+		fs.writeSync( fd, [file,"Raw-Reads:"+sequences.length,"On-Target reads:"+ot_reads,"%On-Target:"+ot_percentage,"IFI_score:"+ifi].join(",") + "\n" );
 		for(var k in f_primer) {
 			fs.writeSync( fd, print_line[k] + "\n" );
 		}
@@ -484,27 +492,140 @@ do_science = function(inpath, cb) {								// inpath: "foo/bar/file.gz"
 		fs.close(fd);
 
 
-		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+// All done 
 
 
-		var flag = "S";
-		var geno_thresh = 0;
-
-
-		var out = [];
-		var s = "Sample,Raw Reads,On-Target Reads,%On-Target,%GT,IFI";
-		probe_info.forEach(function(pi) {
-			var a = pi.trim().split(",");
-			s += "," + a[0];
-		});
-		log(s);
-
-
-		//	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
-
-
-		cb();		// finish 
+		finish();
 	});
+}
+
+
+var geno_compile = function(finish) {
+
+
+	fs.readdir(data_out, function(err, f) {
+		
+		var files = [];
+		f.forEach(function(filename) {
+			if( /\.genos$/.test(filename) ) {
+				var o = { filename:filename, lines:[] };
+				var lines = fs.readFileSync(data_out+"/"+filename, "utf8").trim().split("\n");
+				lines.forEach(function(line) {
+					o.lines.push(line.trim().split(","));
+				});
+				files.push(o);
+			}
+		});
+		// files now looks like: [ { filename:"foo.genos", lines: [ [ "word1", ... ], [ "word2", ... ] ... }, ... ]
+		log("loaded "+files.length+" .genos files");
+
+
+		// use the first file to output the assay names (whatever they are)
+		var headings = "Sample,Raw Reads,On-Target Reads,%On-Target,%GT,IFI";
+		var file = files[0];
+		file.lines.forEach(function(line, i) {
+			if(i == 0) return;		// skip the first line
+			headings += ","+line[ 0 ];
+		});
+		headings += "\n";
+
+
+		var compile = function(file, flag, thresh, output_filename) {
+
+			var fd = fs.openSync( output_filename, "w" );
+			fs.writeSync(fd, headings);
+
+			files.forEach(function(file) {
+
+
+				var raw_reads = 0;
+				var on_target = 0;
+				var gt_pct = 0;
+				var ifi = 0;
+				var sample_name = file.filename.replace( /\.genos$/, "" );
+
+				var lines = file.lines;
+
+				lines.forEach(function(line, i) {
+					if(i == 0) {
+						// first line
+						raw_reads =  toInt(line[1].replace( /Raw-Reads:/, "" ));
+						ifi =  toFlt(line[4].replace( /IFI_score:/, "" ));
+					}
+					else {
+						// remaining lines
+						if(line[4].match( /NA|00/)) {
+							gt_pct += 1;
+						}
+						// Ots_110495-380,G=0,C=459,0,CC,A2HOM,1.7,0,790,97.2,1.473,"-","-"
+						var count1 = toInt(line[1].split("=")[1]);		// 0 (G=0)
+						var count2 = toInt(line[2].split("=")[1]);		// 459 (C=459)
+						on_target += count1 + count2;
+					}
+				});
+
+
+				var num_targets = lines.length - 1;
+				gt_pct = 100 - mk_pct(num_targets, gt_pct); //gt_pct = (num_targets > 0) ? ((gt_pct / num_targets) * 100) : 0;
+
+				ot_pct = mk_pct(raw_reads, on_target); //ot_pct = (raw_reads > 0) ? ((on_target / raw_reads) * 100) : 0;
+
+				var out = sample_name+","+raw_reads+","+on_target+","+ot_pct+","+gt_pct+","+ifi+",";
+
+				lines.forEach(function(line, i) {
+					if(i > 0) {
+						var geno = line[4];
+						var l_count = 0;
+						var x1 = toInt(line[1].split("=")[1]);
+						var x2 = toInt(line[2].split("=")[1]);
+						l_count = x1 + x2;
+
+						var numgt = "00";
+						switch(line[5]) {
+						case "A1HOM": numgt = "11"; break;
+						case "HET": numgt = "12"; break;
+						case "A2HOM": numgt = "22"; break;
+						//case "NA": numgt = "00"; break;
+						}
+						/*if(g == "A1HOM") { numgt = "11" };
+						if(g == "HET") { numgt = "12" };
+						if(g == "A2HOM") { numgt = "22" };
+						if(g == "NA") { numgt = "00" };*/
+
+						if(flag == "S" && gt_pct >= thresh)
+							out += geno+",";
+						else
+						if(flag == "C" && gt_pct >= thresh)
+							out += l_count+",";
+						else
+						if(flag == "N" && gt_pct >= thresh)
+							out += numgt+",";
+						//else
+						//	out += "\"-\",";
+
+					}
+
+				});
+
+				out += "\n";
+
+				fs.writeSync(fd, out);
+			});
+
+			fs.close(fd);
+		}
+
+		//compile(files, "S", 0, data_out+"/compiled.csv");					// this is same as compiled_snps.csv
+		compile(files, "C", 0, data_out+"/compiled_counts.csv");
+		compile(files, "S", 0, data_out+"/compiled_snps.csv");
+		compile(files, "N", 90, data_out+"/compiled_numeric.csv");
+
+		
+		finish();
+
+	});
+
 }
 
 
