@@ -8,7 +8,7 @@ require("sleepless");
 require("meet");
 
 
-// return a reversed version of a string: srev = "foo".reverse();	// "oof"
+// returns a reversed version of a string: "foo" becomes "oof"
 String.prototype.reverse = function() {
 	var o = '';
 	for (var i = this.length - 1; i >= 0; i--)
@@ -17,7 +17,7 @@ String.prototype.reverse = function() {
 }
 
 
-// return the reverse complement version of the nucleotide sequence in "s"
+// return the reverse complement version of the nucleotide sequence in "s": "ACTG" becomes "CAGT"
 var rev_comp = function(s, b) {
 	return s
 		.reverse()
@@ -33,7 +33,7 @@ var rev_comp = function(s, b) {
 }
 
 
-// mk_pct(6, 2) returns 33.33
+// return a percentage as a number to 2 decimal places: mk_pct(6, 2) returns 33.33 (2 is 33.33% of 6)
 var mk_pct = function(t, f) {
 	if(f <= 0) {
 		return 0;
@@ -57,8 +57,8 @@ fs.readFileSync( assay_file, "utf8" ).trim().split( "\n" ).forEach(function(line
 
 	a.name = cols[0].trim();
 
-	a.fwd_seq = cols[1].trim();
-	a.fwd_seq_rc = rev_comp(a.fwd_seq);
+	a.fwd_prm = cols[1].trim();
+	a.fwd_prm_rc = rev_comp(a.fwd_prm);
 
 	a.probe1 = cols[2].trim();
 	a.probe1_rc = rev_comp(a.probe1);
@@ -77,7 +77,6 @@ assays.sort(function(a, b) {
 	if(a.name.toLowerCase() < b.name.toLowerCase()) return -1;
 	return 0;
 });
-
 
 
 var on_target = [];
@@ -126,8 +125,7 @@ probe_info.forEach(function(line) {
 
 
 
-
-// scan data_in for any files, in any sub-directories that end with .fasq.gz
+// scan "data_in" for any files, in any sub-directories that end with .fasq.gz
 // XXX This exec() won't work on windows; walk the tree manually instead
 cmd = "find \""+data_in+"\" | grep .fastq.gz";
 exec(cmd, function(err, stdout, stderr) {
@@ -183,26 +181,24 @@ do_science = function(inpath, finish) {								// inpath: "foo/bar/file.gz"
 		}
 
 
-// convert the fastq data into an array of objects, one per sequence.
 // -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+// convert the fastq data into an array of objects, one per sequence.
 
-		// break the data into lines
-		var lines = data.trim().split("\n");
+		var lines = data.trim().split("\n");	// break the data into lines
 
 		var sequences = [];
 		for(var i = 0; i < lines.length; i += 4) {
 			throwIf(lines[i+2].trim() != "+");	// sanity check - expect this line to contain just a "+" sign
 			sequences.push({
-				// info: lines[i+0].trim(),		// unused
+				// info: lines[i+0].trim(),		// currently unused
 				sequence: lines[i+1].trim(),
-				// plus: lines[i+2].trim(),		// unused
-				//quality: lines[i+3].trim(),	// unused
+				// plus: lines[i+2].trim(),		// currently unused
+				//quality: lines[i+3].trim(),	// currently unused
 			});
 		}
 		log("processing \""+file+"\" ("+sequences.length+" sequences)");
 
 		// 'sequences' now looks like: [ { sequence: "ACTG" }, { ... }, ... ]
-
 
 
 // Build an array of counts, one entry per distinct sequence, sorted by count, highest to lowest
@@ -247,8 +243,8 @@ do_science = function(inpath, finish) {								// inpath: "foo/bar/file.gz"
 
 		assays.forEach(function(a) {
 
-			var rx_fp = new RegExp( a.fwd_seq );			// matches the forward primer sequence
-			var rx_fp_rc = new RegExp( a.fwd_seq_rc );		// matches the RC of the forward primer sequence
+			var rx_fp = new RegExp( a.fwd_prm );			// matches the forward primer sequence
+			var rx_fp_rc = new RegExp( a.fwd_prm_rc );		// matches the RC of the forward primer sequence
 			var rx_p1 = new RegExp( a.probe1 );				// matches the first probe sequence
 			var rx_p1_rc = new RegExp( a.probe1_rc );		// matches the RC of the first probe sequence
 			var rx_p2 = new RegExp( a.probe2 );				// ditto probe2
