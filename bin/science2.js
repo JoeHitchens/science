@@ -244,19 +244,21 @@ do_science = function(inpath, finish) {								// inpath: "foo/bar/file.gz"
 		assays.forEach(function(a) {
 
 			var rx_fp = new RegExp( a.fwd_prm );			// matches the forward primer sequence
-			var rx_fp_rc = new RegExp( a.fwd_prm_rc );		// matches the RC of the forward primer sequence
+//			var rx_fp_rc = new RegExp( a.fwd_prm_rc );		// matches the RC of the forward primer sequence
 			var rx_p1 = new RegExp( a.probe1 );				// matches the first probe sequence
-			var rx_p1_rc = new RegExp( a.probe1_rc );		// matches the RC of the first probe sequence
+//			var rx_p1_rc = new RegExp( a.probe1_rc );		// matches the RC of the first probe sequence
 			var rx_p2 = new RegExp( a.probe2 );				// ditto probe2
-			var rx_p2_rc = new RegExp( a.probe2_rc );		// and RC of probe2
+//			var rx_p2_rc = new RegExp( a.probe2_rc );		// and RC of probe2
 
 			sequence_counts.forEach(function(sc) {
 				var seq = sc[0];		// nucleotide sequence
 				var num = sc[1];		// # of occurances
 				var m_f, m_p;
 
-				m_f = rx_fp.test(seq) || rx_fp_rc.test(seq);	// m_f is true if fwd primer or its RC is found
-				m_p = rx_p1.test( seq ) || rx_p2.test( seq ) || rx_p1_rc.test( seq ) || rx_p2_rc.test( seq );	// m_p is true if either probe1 or probe2 (or their RCs) are found
+//				m_f = rx_fp.test(seq) || rx_fp_rc.test(seq);	// m_f is true if fwd primer or its RC is found
+//				m_p = rx_p1.test( seq ) || rx_p2.test( seq ) || rx_p1_rc.test( seq ) || rx_p2_rc.test( seq );	// m_p is true if either probe1 or probe2 (or their RCs) are found
+				m_f = rx_fp.test(seq);
+				m_p = rx_p1.test( seq ) || rx_p2.test( seq );
 
 				if(m_f) {
 					a.fwd_count += num;
@@ -292,17 +294,17 @@ do_science = function(inpath, finish) {								// inpath: "foo/bar/file.gz"
 				var target = f_primerkey[fp_seq];
 
 				var rx_p1 = new RegExp( probea1[target] );
-				var rx_p1rc = new RegExp( probea1_rc[target] );
+//				var rx_p1rc = new RegExp( probea1_rc[target] );
 				var rx_p2 = new RegExp( probea2[target] );
-				var rx_p2rc = new RegExp( probea2_rc[target] );
+//				var rx_p2rc = new RegExp( probea2_rc[target] );
 
-				if( rx_p1.test(r1_seq) || rx_p1rc.test(r1_seq) ) {
+				if( rx_p1.test(r1_seq) /*|| rx_p1rc.test(r1_seq)*/ ) {
 					allele1_count[target] += 1;
 					on_target[target] += 1;
 					ot_reads += 1;
 				}
 				else
-				if( rx_p2.test(r1_seq) || rx_p2rc.test(r1_seq) ) {
+				if( rx_p2.test(r1_seq) /*|| rx_p2rc.test(r1_seq)*/ ) {
 					allele2_count[target] += 1;
 					on_target[target] += 1;
 					ot_reads += 1;
@@ -565,6 +567,7 @@ var geno_compile = function(finish) {
 				var num_targets = lines.length - 1;
 				gt_pct = 100 - mk_pct(num_targets, gt_pct); //gt_pct = (num_targets > 0) ? ((gt_pct / num_targets) * 100) : 0;
 
+				log("rr="+raw_reads+" ot="+on_target);
 				ot_pct = mk_pct(raw_reads, on_target); //ot_pct = (raw_reads > 0) ? ((on_target / raw_reads) * 100) : 0;
 
 				var out = sample_name+","+raw_reads+","+on_target+","+ot_pct+","+gt_pct+","+ifi+",";
