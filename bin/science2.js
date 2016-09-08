@@ -415,7 +415,7 @@ do_science = function(inpath, finish) {								// inpath: "foo/bar/file.gz"
 		ifi = (bkgrd_ct / hom_ct) * 100;
 		ifi = Math.round(ifi * 100) / 100;
 		//log( "hom_ct="+hom_ct+" bkgrd_ct="+bkgrd_ct );
-		log( "IFI_score:"+ifi );
+		log( "----IFI_score:"+ifi );
 
 
 		// do the sexy business
@@ -567,7 +567,6 @@ var geno_compile = function(finish) {
 				var num_targets = lines.length - 1;
 				gt_pct = 100 - mk_pct(num_targets, gt_pct); //gt_pct = (num_targets > 0) ? ((gt_pct / num_targets) * 100) : 0;
 
-				log("rr="+raw_reads+" ot="+on_target);
 				ot_pct = mk_pct(raw_reads, on_target); //ot_pct = (raw_reads > 0) ? ((on_target / raw_reads) * 100) : 0;
 
 				var out = sample_name+","+raw_reads+","+on_target+","+ot_pct+","+gt_pct+","+ifi+",";
