@@ -94,7 +94,7 @@ var allele2_count = [];
 var a1_corr = [];
 var a2_corr = [];
 var print_line = [];
-var ot_reads = 0;
+//var ot_reads = 0;
 var unmatched = 0;
 
 var probe_info = fs.readFileSync(probe_file, "utf8").trim().split("\n");
@@ -287,6 +287,7 @@ do_science = function(inpath, finish) {								// inpath: "foo/bar/file.gz"
 // -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
 		// count alleles, ontarget, and off target reads
+		var ot_reads = 0;
 		sequences.forEach(function(seq) {
 			var r1_seq = seq.sequence;
 			var fp_seq = r1_seq.substr(0, 14);
@@ -415,7 +416,7 @@ do_science = function(inpath, finish) {								// inpath: "foo/bar/file.gz"
 		ifi = (bkgrd_ct / hom_ct) * 100;
 		ifi = Math.round(ifi * 100) / 100;
 		//log( "hom_ct="+hom_ct+" bkgrd_ct="+bkgrd_ct );
-		log( "----IFI_score:"+ifi );
+		//log( "----IFI_score:"+ifi );
 
 
 		// do the sexy business
