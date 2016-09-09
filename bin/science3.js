@@ -8,6 +8,9 @@ require("sleepless");
 require("meet");
 
 
+// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+// some generic helper functions used by the main code
+
 // returns a reversed version of a string: "foo" becomes "oof"
 String.prototype.reverse = function() {
 	var o = '';
@@ -15,7 +18,6 @@ String.prototype.reverse = function() {
 		o += this[i];
 	return o;
 }
-
 
 // return the reverse complement version of the nucleotide sequence in "s": "ACTG" becomes "CAGT"
 var rev_comp = function(s, b) {
@@ -32,7 +34,6 @@ var rev_comp = function(s, b) {
 		.toUpperCase();
 }
 
-
 // return a percentage as a number to 2 decimal places: mk_pct(6, 2) returns 33.33 (2 is 33.33% of 6)
 var mk_pct = function(t, f) {
 	if(f <= 0) {
@@ -40,110 +41,6 @@ var mk_pct = function(t, f) {
 	}
 	return Math.round((f / t) * 10000) / 100;
 }
-
-
-data_in = process.argv[2] || "data_in";
-data_out = process.argv[3] || "data_out";
-assay_file = process.argv[4] || "assayinfo.txt";
-probe_file = process.argv[5] || "probeinfo.txt";
-
-
-// read in assay info file (tab delimted text)
-var assays = [];
-fs.readFileSync( assay_file, "utf8" ).trim().split( "\n" ).forEach(function(line) {
-	var cols = line.split( /\s+/ );
-
-	var a = {};
-
-	a.name = cols[0].trim();
-
-	a.fwd_prm = cols[1].trim();
-	a.fwd_prm_rc = rev_comp(a.fwd_prm);
-
-	a.probe1 = cols[2].trim();
-	a.probe1_rc = rev_comp(a.probe1);
-
-	a.probe2 = cols[3].trim();
-	a.probe2_rc = rev_comp(a.probe2);
-
-	a.fwd_count = 0;
-	a.probe_count = 0;
-	a.both_count = 0;
-
-	assays.push(a);
-});
-assays.sort(function(a, b) {
-	if(a.name.toLowerCase() > b.name.toLowerCase()) return 1;
-	if(a.name.toLowerCase() < b.name.toLowerCase()) return -1;
-	return 0;
-});
-
-
-var on_target = [];
-var off_target = [];
-var f_primer = [];
-//var f_primerkey = [];
-var allele1name = [];
-var allele2name = [];
-var probea1 = [];
-var probea2 = [];
-var probea1_rc = [];
-var probea2_rc = [];
-//var allele1_count = [];
-//var allele2_count = [];
-var a1_corr = [];
-var a2_corr = [];
-var print_line = [];
-//var ot_reads = 0;
-var unmatched = 0;
-
-var probe_info = fs.readFileSync(probe_file, "utf8").trim().split("\n");
-probe_info.forEach(function(line) {
-	var info = line.trim().split(",");
-	var k = info[0];
-
-	f_primer[k] = info[5].substr(0, 14);		// why only 14 ?
-	f_primerkey[f_primer[k]] = k;
-
-	allele1name[k] = info[1];
-	allele2name[k] = info[2];
-
-	probea1[k] = info[3];
-	probea2[k] = info[4];
-	probea1_rc[k] = rev_comp(info[3])
-	probea2_rc[k] = rev_comp(info[4]);
-
-	a1_corr[k] = toFlt(info[6]);
-	a2_corr[k] = toFlt(info[7]);
-
-	// init allele counts to 0
-	allele1_count[k] = 0;
-	allele2_count[k] = 0;
-	on_target[k] = 0;
-	off_target[k] = 0;
-});
-
-
-
-// scan "data_in" for any files, in any sub-directories that end with .fasq.gz
-// XXX This exec() won't work on windows; walk the tree manually instead
-cmd = "find \""+data_in+"\" | grep .fastq.gz";
-exec(cmd, function(err, stdout, stderr) {
-	throwIf(err);
-
-	files = stdout.trim().split("\n");		// split the output of the find command into an array of lines, on per file
-	log("Input directory \""+data_in+"\" contains "+files.length+" .fastq.gz files");
-
-	// queue each .fastq.gz for processing by do_science()
-	var m = new Meet();
-	files.forEach(function(file) {
-		m.queue(do_science, file);
-	});
-	m.queue(geno_compile);
-	m.allDone(process.exit);		// exit program when all are done.
-
-});
-
 
 // read the compressed file at "inpath" and write it back out to "outpath", call cb() when done
 gunzip = function(inpath, outpath, cb) {
@@ -163,9 +60,97 @@ gunzip = function(inpath, outpath, cb) {
 
 }
 
+// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+
+
+data_in = process.argv[2] || "data_in";
+data_out = process.argv[3] || "data_out";
+assay_file = process.argv[4] || "assayinfo.txt";
+probe_file = process.argv[5] || "probeinfo.txt";
+
+
+var genes_h = {};				// hash of gene objects, tagged by name
+var genes_a = [];			// array of same objects, sorted by name
+
+var fish = {};
+
+
+fs.readFileSync( assay_file, "utf8" ).trim().split( "\n" ).forEach(function(line) {
+	var cols = line.trim().split( /\s+/ );
+
+	var name = cols[0].trim();
+	var g = {
+		name: name,
+		fwd_prm: cols[1].trim(),
+		probe1: cols[2].trim(),
+		probe2: cols[3].trim(),
+		fwd_prm_count: 0,
+		probe_count: 0,
+		both_count: 0,
+	};
+
+	genes_h[name] = g;
+	genes_a.push(g);
+});
+
+genes_a.sort(function(a, b) {
+	if(a.name.toLowerCase() > b.name.toLowerCase()) return 1;
+	if(a.name.toLowerCase() < b.name.toLowerCase()) return -1;
+	return 0;
+});
+
+
+fs.readFileSync(probe_file, "utf8").trim().split("\n").forEach(function(line) {
+	var cols = line.trim().split(",");
+
+	var name = cols[0];
+	var g = genes_h[name];
+	throwIf(!g);								// this gene name wasn't present in the assay info file
+	throwIf(g.name != name);					// gene name should match
+	throwIf(g.fwd_prm != cols[5].trim());		// fwd primer should match
+	throwIf(g.probe1 != cols[3].trim(), "## "+g.probe1+" - "+cols[3].trim());		// probe 1 primer should match
+	throwIf(g.probe2 != cols[4].trim());		// probe 2 primer should match
+
+	g.allele1 = cols[1].trim();
+	g.allele2 = cols[2].trim();
+
+	a1_corr[name] = toFlt(cols[6]);				// correction factor?
+	a2_corr[name] = toFlt(cols[7]);				// correction factor?
+
+	g.allele1_count = 0;
+	g.allele2_count = 0;
+	g.on_target = 0;
+	g.off_target = 0;
+});
+
+
+
+// scan "data_in" for any files, in any sub-directories that end with .fasq.gz
+// XXX This exec() won't work on windows; walk the tree manually instead
+cmd = "find \""+data_in+"\" | grep .fastq.gz";
+exec(cmd, function(err, stdout, stderr) {
+	throwIf(err);
+
+	files = stdout.trim().split("\n");		// split the output of the find command into an array of lines, on per file
+	log("Input directory \""+data_in+"\" contains "+files.length+" .fastq.gz files");
+
+	// queue each .fastq.gz for processing by one_fish()
+	var m = new Meet();
+	files.forEach(function(file) {
+		m.queue(one_fish, file);
+	});
+
+	// compile the results of all fish
+	m.queue(geno_compile);
+
+	m.allDone(process.exit);		// exit program
+});
+
 
 // process a single fish from the file at "inpath"; call finish() when finished.
-do_science = function(inpath, finish) {								// inpath: "foo/bar/file.gz"
+one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
+
+	var fish = {};		// A fish!
 
 	var file = path.basename(inpath);							// file: "file.gz"
 	var outpath = data_out + "/" + file.replace( /\.gz$/, "" );	// outpath: "data_out/file"
@@ -185,20 +170,15 @@ do_science = function(inpath, finish) {								// inpath: "foo/bar/file.gz"
 // convert the fastq data into an array of objects, one per sequence.
 
 		var lines = data.trim().split("\n");	// break the data into lines
+		delete data;
 
 		var sequences = [];
 		for(var i = 0; i < lines.length; i += 4) {
 			throwIf(lines[i+2].trim() != "+");	// sanity check - expect this line to contain just a "+" sign
-			sequences.push({
-				// info: lines[i+0].trim(),		// currently unused
-				sequence: lines[i+1].trim(),
-				// plus: lines[i+2].trim(),		// currently unused
-				//quality: lines[i+3].trim(),	// currently unused
-			});
+			sequences.push( lines[ i + 1 ].trim() );
 		}
 		log("processing \""+file+"\" ("+sequences.length+" sequences)");
 
-		// 'sequences' now looks like: [ { sequence: "ACTG" }, { ... }, ... ]
 
 
 // Build an array of counts, one entry per distinct sequence, sorted by count, highest to lowest
@@ -207,80 +187,85 @@ do_science = function(inpath, finish) {								// inpath: "foo/bar/file.gz"
 		// Create a hash with one entry per sequence, where the sequence is the nucleotide sequence,
 		// and the value is the number of times that sequence appears in the fastq data.
 		var hash = {};
-		for(var i = 0; i < sequences.length; i++) {
-			var key = sequences[i].sequence;
-			hash[key] = toInt(hash[key]) + 1;
-		}
+		sequences.forEach(function(seq) {
+			hash[seq] = toInt(hash[seq]) + 1;
+		});
 		// hash: { "ACTG...": 123, "GTCA...": 456, ... }
 
 		// convert the hash into an array.
-		// Each array entry is itself an array, first entry being the sequence, and second being the count.
+		// Each array entry is an object with sequence and count values.
 		var sequence_counts = [];
-		for(var k in hash) { 
-			sequence_counts.push([k, hash[k]]);
+		for(var seq in hash) { 
+			sequence_counts.push( { sequence: seq, count: hash[seq] } );
 		}
 
-		// sort them
+		// sort the array, largest count to smallest count
 		sequence_counts.sort(function(a, b) {
-			if(a[1] < b[1]) return  1;
-			if(a[1] > b[1]) return -1;
+			if(a.count < b.count) return  1;
+			if(a.count > b.count) return -1;
 			return 0;
 		});
 
+		/*
 		// write out hashes to file
 		var fd = fs.openSync( outpath + ".hash", "w" );
 		sequence_counts.forEach(function(a, i) {
 			fs.writeSync(fd, ">;" + (i + 1) + ";" + a[1] + "\n" + a[0] + "\n");
 		});
 		fs.close(fd);
+		*/
 
-		// 'sequence_counts' now looks like: [ [ "GTCA", 456 ], [ "ACTG", 123 ], ... ]
+		// 'sequence_counts' now looks like: [ { sequence: "GTCA", count: 456 }, ... ]
+		fish.sequence_counts = sequence_counts;
+		fish.raw_reads = sequences.length;
 
 
 
-// count occurances of fwd sequence and it's RC, probes (and their RCs), and occurances of both
+// count occurances of fwd sequence and probes for each gene
 // -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
-		assays.forEach(function(a) {
+		genes_a.forEach(function(g) {
 
-			var rx_fp = new RegExp( a.fwd_prm );			// matches the forward primer sequence
-//			var rx_fp_rc = new RegExp( a.fwd_prm_rc );		// matches the RC of the forward primer sequence
-			var rx_p1 = new RegExp( a.probe1 );				// matches the first probe sequence
-//			var rx_p1_rc = new RegExp( a.probe1_rc );		// matches the RC of the first probe sequence
-			var rx_p2 = new RegExp( a.probe2 );				// ditto probe2
-//			var rx_p2_rc = new RegExp( a.probe2_rc );		// and RC of probe2
+			var rx_fp = new RegExp( "^" + g.fwd_prm );		// matches fwd primer at beginning of sequence
+			var rx_p1 = new RegExp( a.probe1 );				// matches probe 1 anywhere in sequence
+			var rx_p2 = new RegExp( a.probe2 );				// ditto probe 2
 
 			sequence_counts.forEach(function(sc) {
-				var seq = sc[0];		// nucleotide sequence
-				var num = sc[1];		// # of occurances
-				var m_f, m_p;
+				var seq = sc.sequence; 		// nucleotide sequence
+				var count = sc.count;		// # of occurances
 
-//				m_f = rx_fp.test(seq) || rx_fp_rc.test(seq);	// m_f is true if fwd primer or its RC is found
-//				m_p = rx_p1.test( seq ) || rx_p2.test( seq ) || rx_p1_rc.test( seq ) || rx_p2_rc.test( seq );	// m_p is true if either probe1 or probe2 (or their RCs) are found
-				m_f = rx_fp.test(seq);
-				m_p = rx_p1.test( seq ) || rx_p2.test( seq );
+				var m_f = seq.startsWith(g.fwd_prm);		// rx_fp.test( seq );		// XXX speed up with s.startsWith() ?
+				var m_p = rx_p1.test( seq ) || rx_p2.test( seq );
 
 				if(m_f) {
-					a.fwd_count += num;
+					g.fwd_prm_count += count;
 				}
 				if(m_p) {
-					a.probe_count += num;
+					g.probe_count += count;
 				}
 				if(m_f && m_p) {
-					a.both_count += num;
+					g.both_count += count;
 				}
 
 			});
 		});
 
+		/*
 		// write counts out to csv file
 		var fd = fs.openSync( outpath + ".hash.csv", "w" );
 		fs.writeSync( fd, [ "Name", "Fwd count", "Probe count", "Both count" ].join(",") + "\n" );
 		assays.forEach(function(a) {
-			fs.writeSync( fd, [ a.name, a.fwd_count, a.probe_count, a.both_count ].join(",") + "\n" );
+			fs.writeSync( fd, [ a.name, a.fwd_prm_count, a.probe_count, a.both_count ].join(",") + "\n" );
 		});
 		fs.close(fd);
-
+		*/
+		var n = 0;
+		sequence_counts.forEach(function(sc) {
+			n += sc.count;
+		});
+		throwIf(n != fish.raw_reads);
+log('k');
+process.exit();
 
 
 // Let's give a big hand to the world renowned genotyper!
