@@ -105,11 +105,15 @@ close PROBES;
 			my $target = $F_PrimerKey{$FP_seq};
 			if ($R1_seq =~ m/$probeA1{$target}|$probeA1_RC{$target}/){
 				$TargetStart{$target} = $-[0];
-				$Allele1_Count{$target}++; $On_Target{$target}++; $OT_Reads++;
+				$Allele1_Count{$target}++;
+				$On_Target{$target}++;
+				$OT_Reads++;
 			}
 			elsif ($R1_seq =~ m/$probeA2{$target}|$probeA2_RC{$target}/){
 				$TargetStart{$target} = $-[0];
-				$Allele2_Count{$target}++; $On_Target{$target}++; $OT_Reads++;
+				$Allele2_Count{$target}++;
+				$On_Target{$target}++;
+				$OT_Reads++;
 			}
 			else {
 				$Off_Target{$target}++;
@@ -198,7 +202,7 @@ foreach my $loci (sort keys %F_Primer){
 	if ($Allele1_Count{$loci} == 0) {$A1fix = 0.1}
 	else {$A1fix = $Allele1_Count{$loci}}
 	if ($Allele2_Count{$loci} == 0) {$A2fix = 0.1}
-	else {$A2fix = $Allele2_Count{$loci}}
+	else {$A4fix = $Allele2_Count{$loci}}		# XXX bug ... should be A2 instead of A4?
 	my $ratio = $A1fix/$A2fix;
 	$ratio = sprintf("%.3f", $ratio);
 
