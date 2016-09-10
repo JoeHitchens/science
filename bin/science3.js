@@ -409,30 +409,33 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 		});
 
 
-/*
 		// do the sexy business
-		var p = 0;
-		var c = 0;
+		var fp = 0;
+		var ot = 0;
 		var rx = new RegExp( "CCTACCAAGTACA" );
-		sequences.forEach(function(seq) {
+		sequence_counts.forEach(function(sc) {
+			var seq = sc.sequence;
+			var count = sc.count;
+
 			if(seq.indexOf("CACAACATGAGCTCATGGG") == 0) {
-				p += 1;
+				fp += count;
 				if( rx.test(seq) ) {
-					c++;
+					ot += count;
 				}
 			}
 		});
 
-		var ot_pct = mk_pct(p, c);
+		var ot_pct = mk_pct(fp, ot);
+		var all_ot_pct = mk_pct(fish.ot_reads, ot);
 
-		var all_ot_pct = mk_pct(fish.ot_reads, c);
+		var cntrl_counts = toInt(fish.ot_reads * 0.004);		// xxx ??
 
-		var pct = mk_pct(c, fish.ot_reads * 0.004);
+		var ratio = Math.round((cntrl_counts / ot) * 1000) / 1000;
 
 		var sex_geno = "00";
 		var sex_geno_class = "NA";
 
-		if(cntrl_counts + counts < 10) {
+		if(cntrl_counts + ot < 10) {
 			sex_geno = "00";
 			sex_geno_class = "NA";
 		}
@@ -456,9 +459,10 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 			sex_geno = "XY";
 			sex_geno_class = "HET";
 		}
-*/
 
-		//fs.writeSync( fd, "Ots_SEXY3-1,X="+cntrl_counts+",Y="+counts+","+ratio+","+sex_geno+","+geno_class+",0,0,"+counts+","+primerot+","+perofallotreads );
+		fs.writeSync( fd, "Ots_SEXY3-1,X="+cntrl_counts+",Y="+ot+","+ratio+","+sex_geno+","+sex_geno_class+",0,0,"+ot+","+ot_pct+","+all_ot_pct );
+
+
 		fs.close(fd);
 
 
