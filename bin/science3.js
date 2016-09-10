@@ -26,7 +26,7 @@ String.prototype.reverse = function() {
 }
 
 // return the reverse complement version of the nucleotide sequence in "s": "ACTG" becomes "CAGT"
-var rev_comp = function(s, b) {
+var rev_comp = function(s) {
 	return s
 		.reverse()
 		.replace( /A/g, "t" )
@@ -78,7 +78,7 @@ locus_file = process.argv[5] || "locusinfo.txt";
 var genes_h = {};				// hash of gene objects, tagged by name
 var genes_a = [];			// array of same objects, sorted by name
 
-var fish = {};
+var fishies = {};
 
 
 fs.readFileSync( assay_file, "utf8" ).trim().split( "\n" ).forEach(function(line) {
@@ -234,10 +234,13 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 				both_count: 0,
 			};
 			fish.genes[g.name] = fg;
+			log("GENE "+o2j(g));
 
 			var rx_fp = new RegExp( "^" + g.fwd_prm );		// matches fwd primer at beginning of sequence
 			var rx_p1 = new RegExp( g.probe1 );				// matches probe 1 anywhere in sequence
-			var rx_p2 = new RegExp( g.probe2 );				// ditto probe 2
+			var rx_p1_rc = new RegExp( rev_comp(g.probe1) );
+			var rx_p2 = new RegExp( g.probe1 );				// matches probe 1 anywhere in sequence
+			var rx_p2_rc = new RegExp( rev_comp(g.probe2) );
 
 			sequence_counts.forEach(function(sc) {
 				var seq = sc.sequence; 		// nucleotide sequence
@@ -247,22 +250,22 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 				if(m_f) {
 					fg.fwd_prm_count += count;
 
-					if( rx_p1.test( seq ) ) {
-						fg.probe1_count += count;
+					if( rx_p1.test( seq ) || rx_p1_rc.test( seq ) ) {
 						if( m_f ) {
+							fg.probe1_count += count;
 							fg.both_count += count;
+							fg.ot_reads += count;
 							fish.ot_reads += count;
 						}
 					}
 					else 
-					if( rx_p2.test( seq ) ) {
-						fg.probe2_count += count;
+					if( rx_p2.test( seq ) || rx_p2_rc.test( seq ) ) {
 						if( m_f ) {
+							fg.probe2_count += count;
 							fg.both_count += count;
+							fg.ot_reads += count;
 							fish.ot_reads += count;
 						}
-					}
-					else {
 					}
 				}
 			});
@@ -272,8 +275,7 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 		fish.off_reads = fish.raw_reads - fish.ot_reads;
 
 
-		throwIf( fish.raw_reads != (fish.ot_reads + fish.off_reads), "rr="+fish.raw_reads + " ot="+fish.ot_reads+" off="+fish.off_reads );
-
+		//throwIf( fish.raw_reads != (fish.ot_reads + fish.off_reads), "rr="+fish.raw_reads + " ot="+fish.ot_reads+" off="+fish.off_reads );
 		/*
 		// write counts out to csv file
 		var fd = fs.openSync( outpath + ".hash.csv", "w" );
@@ -300,6 +302,8 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 
 			var fg = fish.genes[g.name];
 
+			/*
+			*/
 			fg.probe_count = fg.probe1_count + fg.probe2_count;
 			fg.a1_count = fg.probe1_count - ((fg.probe_count / 4) * g.a1_corr);
 			fg.a2_count = fg.probe2_count - ((fg.probe_count / 4) * g.a2_corr);
@@ -313,6 +317,11 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 			fg.a2_count = toInt(fg.a2_count);
 
 			fg.a1a2_ratio = toInt(((fg.a1_count || 0.1) / (fg.a2_count || 0.1)) * 1000) / 1000;
+			/*
+			fg.a1_count = fg.probe1_count - ((fg.probe_count / 4) * g.a1_corr);
+			fg.a2_count = fg.probe2_count - ((fg.probe_count / 4) * g.a2_corr);
+			fg.a1a2_ratio = mk_pct(fg.a1_count / fg.a2_count);
+			*/
 
 			fg.genotype = "00";
 			fg.genoclass = "NA";
@@ -469,139 +478,145 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 // -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 // All done 
 
+		fishies[fish.name] = fish;
+
 
 		finish();
 	});
 }
+
 
 
 var geno_compile = function(finish) {
 
-
-	fs.readdir(data_out, function(err, f) {
-		
-		var files = [];
-		f.forEach(function(filename) {
-			if( /\.genos$/.test(filename) ) {
-				var o = { filename:filename, lines:[] };
-				var lines = fs.readFileSync(data_out+"/"+filename, "utf8").trim().split("\n");
-				lines.forEach(function(line) {
-					o.lines.push(line.trim().split(","));
-				});
-				files.push(o);
-			}
-		});
-		// files now looks like: [ { filename:"foo.genos", lines: [ [ "word1", ... ], [ "word2", ... ] ... }, ... ]
-		log("loaded "+files.length+" .genos files");
+	var headings = "Sample,Raw Reads,On-Target Reads,%On-Target,%GT,IFI";
+	genes_a.forEach(function(g) {
+		headings += ","+g.name;
+	});
+	headings += "\n";
 
 
-		// use the first file to output the assay names (whatever they are)
-		var headings = "Sample,Raw Reads,On-Target Reads,%On-Target,%GT,IFI";
-		var file = files[0];
-		file.lines.forEach(function(line, i) {
-			if(i == 0) return;		// skip the first line
-			headings += ","+line[ 0 ];
-		});
-		headings += "\n";
+	var compile = function(flag, thresh, output_filename) {
 
+		var fd = fs.openSync( output_filename, "w" );
+		fs.writeSync(fd, headings);
 
-		var compile = function(file, flag, thresh, output_filename) {
+		for(var name in fishies) {
+			var fish = fishies[name];
+			//dump(fish); process.exit();
 
-			var fd = fs.openSync( output_filename, "w" );
-			fs.writeSync(fd, headings);
-
-			files.forEach(function(file) {
-
-
-				var raw_reads = 0;
-				var on_target = 0;
-				var gt_pct = 0;
-				var ifi = 0;
-				var sample_name = file.filename.replace( /\.genos$/, "" );
-
-				var lines = file.lines;
-
-				lines.forEach(function(line, i) {
-					if(i == 0) {
-						// first line
-						raw_reads =  toInt(line[1].replace( /Raw-Reads:/, "" ));
-						ifi =  toFlt(line[4].replace( /IFI_score:/, "" ));
-						ot_readsx =  toFlt(line[2].replace( /On-Target:/, "" ));
-					}
-					else {
-						// remaining lines
-						if(line[4].match( /NA|00/)) {
-							gt_pct += 1;
-						}
-						// Ots_110495-380,G=0,C=459,0,CC,A2HOM,1.7,0,790,97.2,1.473,"-","-"
-						var count1 = toInt(line[1].split("=")[1]);		// 0 (G=0)
-						var count2 = toInt(line[2].split("=")[1]);		// 459 (C=459)
-						on_target += count1 + count2;
-					}
-				});
-
-
-				var num_targets = lines.length - 1;
-				gt_pct = 100 - mk_pct(num_targets, gt_pct); //gt_pct = (num_targets > 0) ? ((gt_pct / num_targets) * 100) : 0;
-
-				var ot_pct = mk_pct(raw_reads, on_target); //ot_pct = (raw_reads > 0) ? ((on_target / raw_reads) * 100) : 0;
-
-				var out = sample_name+","+raw_reads+","+on_target+","+ot_pct+","+gt_pct+","+ifi+",";
-
-				lines.forEach(function(line, i) {
-					if(i > 0) {
-						var geno = line[4];
-						var l_count = 0;
-						var x1 = toInt(line[1].split("=")[1]);
-						var x2 = toInt(line[2].split("=")[1]);
-						l_count = x1 + x2;
-
-						var numgt = "00";
-						switch(line[5]) {
-						case "A1HOM": numgt = "11"; break;
-						case "HET": numgt = "12"; break;
-						case "A2HOM": numgt = "22"; break;
-						//case "NA": numgt = "00"; break;
-						}
-						/*if(g == "A1HOM") { numgt = "11" };
-						if(g == "HET") { numgt = "12" };
-						if(g == "A2HOM") { numgt = "22" };
-						if(g == "NA") { numgt = "00" };*/
-
-						if(flag == "S" && gt_pct >= thresh)
-							out += geno+",";
-						else
-						if(flag == "C" && gt_pct >= thresh)
-							out += l_count+",";
-						else
-						if(flag == "N" && gt_pct >= thresh)
-							out += numgt+",";
-						//else
-						//	out += "\"-\",";
-
-					}
-
-				});
-
-				out += "\n";
-
-				fs.writeSync(fd, out);
+			var gt = 0;
+			genes_a.forEach(function(g) {
+				var fg = fish.genes[g.name];
+				if(fg.genotype.match( /NA|00/ )) {
+					gt += 1;
+				}
 			});
 
-			fs.close(fd);
+			var a = [
+				fish.name,
+				fish.raw_reads,
+				fish.ot_reads,
+				mk_pct(fish.raw_reads, fish.ot_reads),
+				mk_pct(genes_a.length, gt),
+				fish.ifi,
+			];
+			genes_a.forEach(function(g) {
+				var fg = fish.genes[g.name];
+				a.push( fg.genotype );
+				if(fg.genotype.match( /NA|00/)) {
+					gt += 1;
+				}
+			});
+
+			fs.writeSync(fd, a.join(",") + "\n");
 		}
 
-		//compile(files, "S", 0, data_out+"/compiled.csv");					// this is same as compiled_snps.csv
-		compile(files, "C", 0, data_out+"/compiled_counts.csv");
-		compile(files, "S", 0, data_out+"/compiled_snps.csv");
-		compile(files, "N", 90, data_out+"/compiled_numeric.csv");
+		/*	
+		files.forEach(function(file) {
 
-		
-		finish();
+			var raw_reads = 0;
+			var on_target = 0;
+			var gt_pct = 0;
+			var ifi = 0;
+			var sample_name = file.filename.replace( /\.genos$/, "" );
 
-	});
+			var lines = file.lines;
+
+			lines.forEach(function(line, i) {
+				if(i == 0) {
+					// first line
+					raw_reads =  toInt(line[1].replace( /Raw-Reads:/, "" ));
+					ifi =  toFlt(line[4].replace( /IFI_score:/, "" ));
+					ot_readsx =  toFlt(line[2].replace( /On-Target:/, "" ));
+				}
+				else {
+					// remaining lines
+					if(line[4].match( /NA|00/)) {
+						gt_pct += 1;
+					}
+					// Ots_110495-380,G=0,C=459,0,CC,A2HOM,1.7,0,790,97.2,1.473,"-","-"
+					var count1 = toInt(line[1].split("=")[1]);		// 0 (G=0)
+					var count2 = toInt(line[2].split("=")[1]);		// 459 (C=459)
+					on_target += count1 + count2;
+				}
+			});
+
+
+			var num_targets = lines.length - 1;
+			gt_pct = 100 - mk_pct(num_targets, gt_pct); //gt_pct = (num_targets > 0) ? ((gt_pct / num_targets) * 100) : 0;
+
+			var ot_pct = mk_pct(raw_reads, on_target); //ot_pct = (raw_reads > 0) ? ((on_target / raw_reads) * 100) : 0;
+
+			var out = sample_name+","+raw_reads+","+on_target+","+ot_pct+","+gt_pct+","+ifi+",";
+
+			lines.forEach(function(line, i) {
+				if(i > 0) {
+					var geno = line[4];
+					var l_count = 0;
+					var x1 = toInt(line[1].split("=")[1]);
+					var x2 = toInt(line[2].split("=")[1]);
+					l_count = x1 + x2;
+
+					var numgt = "00";
+					switch(line[5]) {
+					case "A1HOM": numgt = "11"; break;
+					case "HET": numgt = "12"; break;
+					case "A2HOM": numgt = "22"; break;
+					//case "NA": numgt = "00"; break;
+					}
+
+					if(flag == "S")
+						out += geno+",";
+					else
+					if(flag == "C")
+						out += l_count+",";
+					else
+					if(flag == "N" && gt_pct >= thresh)
+						out += numgt+",";
+					//else
+					//	out += "\"-\",";
+
+				}
+
+			});
+
+			out += "\n";
+
+			fs.writeSync(fd, out);
+		});
+		*/
+
+		fs.close(fd);
+	}
+
+	//compile(files, "S", 0, data_out+"/compiled.csv");					// this is same as compiled_snps.csv
+	compile("C", 0, data_out+"/compiled_counts.csv");
+	compile("S", 0, data_out+"/compiled_snps.csv");
+	compile("N", 90, data_out+"/compiled_numeric.csv");
+	
+	finish();
 
 }
-
 
 
