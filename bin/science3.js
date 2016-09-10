@@ -231,15 +231,14 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 				fwd_prm_count: 0,
 				probe1_count: 0,
 				probe2_count: 0,
-				both_count: 0,
+				ot_reads: 0,
 			};
 			fish.genes[g.name] = fg;
-			log("GENE "+o2j(g));
 
 			var rx_fp = new RegExp( "^" + g.fwd_prm );		// matches fwd primer at beginning of sequence
 			var rx_p1 = new RegExp( g.probe1 );				// matches probe 1 anywhere in sequence
 			var rx_p1_rc = new RegExp( rev_comp(g.probe1) );
-			var rx_p2 = new RegExp( g.probe1 );				// matches probe 1 anywhere in sequence
+			var rx_p2 = new RegExp( g.probe2 );				// matches probe 1 anywhere in sequence
 			var rx_p2_rc = new RegExp( rev_comp(g.probe2) );
 
 			sequence_counts.forEach(function(sc) {
@@ -253,8 +252,7 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 					if( rx_p1.test( seq ) || rx_p1_rc.test( seq ) ) {
 						if( m_f ) {
 							fg.probe1_count += count;
-							fg.both_count += count;
-							fg.ot_reads += count;
+							//fg.ot_reads += count;
 							fish.ot_reads += count;
 						}
 					}
@@ -262,36 +260,24 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 					if( rx_p2.test( seq ) || rx_p2_rc.test( seq ) ) {
 						if( m_f ) {
 							fg.probe2_count += count;
-							fg.both_count += count;
-							fg.ot_reads += count;
+							//fg.ot_reads += count;
 							fish.ot_reads += count;
 						}
 					}
 				}
 			});
 
+			fg.ot_reads = fg.probe1_count + fg.probe2_count;
+			fg.ot_pct = mk_pct(fg.fwd_prm_count, fg.ot_reads);
+			fg.all_ot_pct = mk_pct(fish.ot_reads, fg.ot_reads);
+
 		});
 
 		fish.off_reads = fish.raw_reads - fish.ot_reads;
 
 
-		//throwIf( fish.raw_reads != (fish.ot_reads + fish.off_reads), "rr="+fish.raw_reads + " ot="+fish.ot_reads+" off="+fish.off_reads );
-		/*
-		// write counts out to csv file
-		var fd = fs.openSync( outpath + ".hash.csv", "w" );
-		fs.writeSync( fd, [ "Name", "Fwd count", "Probe count", "Both count" ].join(",") + "\n" );
-		genes_a.forEach(function(g) {
-			var fg = fish.genes[g.name];
-			fs.writeSync(fd, [ g.name, fg.fwd_prm_count, fg.probe_count, fg.both_count ].join(",") + "\n" );
-		});
-		//assays.forEach(function(a) {
-		//	fs.writeSync( fd, [ a.name, a.fwd_prm_count, a.probe_count, a.both_count ].join(",") + "\n" );
-		//});
-		fs.close(fd);
-		*/
 
-
-// Let's give a big hand to the world renowned genotyper!
+// Genotyper
 // -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
 		fish.hom_ct = 0;
@@ -302,31 +288,23 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 
 			var fg = fish.genes[g.name];
 
-			/*
-			*/
-			fg.probe_count = fg.probe1_count + fg.probe2_count;
-			fg.a1_count = fg.probe1_count - ((fg.probe_count / 4) * g.a1_corr);
-			fg.a2_count = fg.probe2_count - ((fg.probe_count / 4) * g.a2_corr);
+			// uncorrected a1:a2 ratio
+			fg.a1a2_ratio_uncorr = toInt(((fg.probe1_count || 0.1) / (fg.probe2_count || 0.1)) * 1000) / 1000;
 
-			if(fg.a1_count < 0)
-				fg.a1_count = 0;
-			if(fg.a2_count < 0)
-				fg.a2_count = 0;
-
-			fg.a1_count = toInt(fg.a1_count);
-			fg.a2_count = toInt(fg.a2_count);
-
-			fg.a1a2_ratio = toInt(((fg.a1_count || 0.1) / (fg.a2_count || 0.1)) * 1000) / 1000;
-			/*
-			fg.a1_count = fg.probe1_count - ((fg.probe_count / 4) * g.a1_corr);
-			fg.a2_count = fg.probe2_count - ((fg.probe_count / 4) * g.a2_corr);
-			fg.a1a2_ratio = mk_pct(fg.a1_count / fg.a2_count);
-			*/
+			// apply correction factors
+			fg.corr_probe1_count = fg.probe1_count - ((fg.ot_reads / 4) * g.a1_corr);
+			fg.corr_probe2_count = fg.probe2_count - ((fg.ot_reads / 4) * g.a2_corr);
+			if(fg.corr_probe1_count < 0) fg.corr_probe1_count = 0;
+			if(fg.corr_probe2_count < 0) fg.corr_probe2_count = 0;
+			fg.corr_probe1_count = toInt(fg.corr_probe1_count);
+			fg.corr_probe2_count = toInt(fg.corr_probe2_count);
+			// a1:a2 ratio with correction
+			fg.a1a2_ratio = toInt(((fg.corr_probe1_count || 0.1) / (fg.corr_probe2_count || 0.1)) * 1000) / 1000;
 
 			fg.genotype = "00";
 			fg.genoclass = "NA";
 
-			if((fg.a1_count + fg.a2_count) < 10) {
+			if((fg.corr_probe1_count + fg.corr_probe2_count) < 10) {
 				// low allele count	
 			}
 			else
@@ -334,28 +312,28 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 				// allele1 homozygotes
 				fg.genotype = g.allele1 + g.allele1;
 				fg.genoclass = "A1HOM";
-				fish.hom_ct += fg.a1_count;
-				fish.bkgrd_ct += fg.a2_count;
+				fish.hom_ct += fg.corr_probe1_count;
+				fish.bkgrd_ct += fg.corr_probe2_count;
 			}
 			else
 			if(fg.a1a2_ratio < 10 && fg.a1a2_ratio > 5) {
 				// in-betweeners
-				fish.hom_ct += fg.a1_count;
-				fish.bkgrd_ct += fg.a2_count;
+				fish.hom_ct += fg.corr_probe1_count;
+				fish.bkgrd_ct += fg.corr_probe2_count;
 			}
 			else
 			if(fg.a1a2_ratio <= 0.1) {
 				// allele2 homozygotes
 				fg.genotype = g.allele2 + g.allele2;
 				fg.genoclass = "A2HOM";
-				fish.hom_ct += fg.a2_count;
-				fish.bkgrd_ct += fg.a1_count;
+				fish.hom_ct += fg.corr_probe2_count;
+				fish.bkgrd_ct += fg.corr_probe1_count;
 			}
 			else
 			if(fg.a1a2_ratio <= 0.5) {
 				// in-betweeners
-				fish.hom_ct += fg.a2_count;
-				fish.bkgrd_ct += fg.a1_count;
+				fish.hom_ct += fg.corr_probe2_count;
+				fish.bkgrd_ct += fg.corr_probe1_count;
 			}
 			else
 			if(fg.a1a2_ratio <= 2) {
@@ -363,11 +341,6 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 				fg.genotype = g.allele1 + g.allele2;
 				fg.genoclass = "HET";
 			}
-
-			fg.reads = fg.ot_reads + fg.off_reads;
-
-			fg.ot_pct = mk_pct(fg.fwd_prm_count, fg.both_count);
-			fg.all_ot_pct = mk_pct(fish.ot_reads, fg.both_count);
 
 		});
 
@@ -389,6 +362,9 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 			"# Allele 1",
 			"# Allele 2",
 			"A1:A2 ratio",
+			"# Allele 1 corr.",
+			"# Allele 2 corr.",
+			"A1:A2 ratio corr.",
 			"Geno type",
 			"Geno class",
 			"A1 corr.",
@@ -402,14 +378,17 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 			var fg = fish.genes[g.name];
 			fs.writeSync( fd, [
 				g.name,								// fish file name
-				g.allele1 + "="+ fg.a1_count,		// # of reads for allele 1
-				g.allele2 +  "="+fg.a2_count,		// # of reads for allele 2
-				fg.a1a2_ratio,						// ratio A1:A2
+				g.allele1 + "="+ fg.probe1_count,		// # of reads for allele 1
+				g.allele2 + "="+fg.probe2_count,		// # of reads for allele 2
+				fg.a1a2_ratio_uncorr,				// ratio A1:A2 
+				g.allele1 + "="+ fg.corr_probe1_count,		// # of reads for allele 1 corrected
+				g.allele2 + "="+fg.corr_probe2_count,		// # of reads for allele 2 corrected
+				fg.a1a2_ratio,						// ratio A1:A2 corrected
 				fg.genotype,						// genotype
 				fg.genoclass,						// genotype class (HOM vs HET)
 				g.a1_corr,							// A1 correction factor
 				g.a2_corr,							// A2 correction factor
-				fg.probe_count,						// # of reads for gene
+				fg.ot_reads,						// # of reads for gene
 				fg.ot_pct,							// % on target for gene only
 				fg.all_ot_pct,						// % on target for gene in total on target reads (total on-target for fish)
 				"-",
@@ -469,7 +448,7 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 			sex_geno_class = "HET";
 		}
 
-		fs.writeSync( fd, "Ots_SEXY3-1,X="+cntrl_counts+",Y="+ot+","+ratio+","+sex_geno+","+sex_geno_class+",0,0,"+ot+","+ot_pct+","+all_ot_pct );
+		fs.writeSync( fd, "Ots_SEXY3-1,X="+cntrl_counts+",Y="+ot+","+ratio+",0,0,0,"+sex_geno+","+sex_geno_class+",0,0,"+ot+","+ot_pct+","+all_ot_pct );
 
 
 		fs.close(fd);

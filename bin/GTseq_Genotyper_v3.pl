@@ -202,8 +202,8 @@ foreach my $loci (sort keys %F_Primer){
 	if ($Allele1_Count{$loci} == 0) {$A1fix = 0.1}
 	else {$A1fix = $Allele1_Count{$loci}}
 	if ($Allele2_Count{$loci} == 0) {$A2fix = 0.1}
-	else {$A4fix = $Allele2_Count{$loci}}		# XXX bug ... should be A2 instead of A4?
-	my $ratio = $A1fix/$A2fix;
+	else {$A2fix = $Allele2_Count{$loci}}		# XXX bug ... should be A2 instead of A4?
+	my $ratio = $A1fix/$A2fix;-4.357
 	$ratio = sprintf("%.3f", $ratio);
 
 	if ($Allele1_Count{$loci} + $Allele2_Count{$loci} < 10) {
