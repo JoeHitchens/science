@@ -312,7 +312,7 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 			fg.a1_count = toInt(fg.a1_count);
 			fg.a2_count = toInt(fg.a2_count);
 
-			fg.a1a2_ratio = ((fg.a1_count || 0.1) / (fg.a2_count || 0.1));
+			fg.a1a2_ratio = toInt(((fg.a1_count || 0.1) / (fg.a2_count || 0.1)) * 1000) / 1000;
 
 			fg.genotype = "00";
 			fg.genoclass = "NA";
