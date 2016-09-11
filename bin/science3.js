@@ -399,10 +399,10 @@ one_fish = function(inpath, finish) {
 			var seq = sc.sequence;
 			var count = sc.count;
 			if(seq.indexOf("CACAACATGAGCTCATGGG") == 0) {
-				fp_hits += 1; //count;
+				fp_hits += count;
 				if( seq.indexOf("CCTACCAAGTACA") != -1) {
 					prb_hits += count;
-					hits += 1; //count;
+					hits += count;
 				}
 			}
 		});
