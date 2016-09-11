@@ -212,6 +212,7 @@ one_fish = function(inpath, finish) {
 			return 0;
 		});
 		// 'sequences' is like [ { sequence: "GTCA", count: 456 }, ... ]
+		fs.writeFileSync(outpath+"-hash.json", util.inspect(sequences), "utf8");
 
 
 		fish.genes = {};				// this holds info for this fish related to the genes we're looking for
@@ -357,8 +358,8 @@ one_fish = function(inpath, finish) {
 		fish.pct_typed = mk_pct(genes_a.length, fish.num_typed);
 
 
-		// write out the .genos.csv file
-		var fd = fs.openSync( outpath + ".genos.csv", "w" );
+		// write out the genos file
+		var fd = fs.openSync( outpath + "-genos.csv", "w" );
 		fs.writeSync( fd, [
 			file,
 			"Raw-Reads," + fish.raw_reads,
@@ -448,7 +449,7 @@ one_fish = function(inpath, finish) {
 			throwIf(true, "ratio="+ratio);
 		}
 
-		fs.writeSync( fd, "Ots_SEXY3-1,X="+adj_hits+",Y="+prb_hits+","+ratio+",,,,"+sex_genotype+","+sex_genoclass+",,,"+hits+","+hit_pct+"\n"); //+",,,"+prb_hits+","+hit_pct+"\n" );
+		fs.writeSync( fd, "Ots_SEXY3-1,X="+adj_hits+",Y="+prb_hits+","+ratio+",,,,"+sex_genotype+","+sex_genoclass+",,,"+hits+","+hit_pct+"\n");
 
 		fs.writeSync( fd, "\n" );
 
@@ -481,9 +482,9 @@ one_fish = function(inpath, finish) {
 
 		// All done; add this fish the growing school of processed fish.
 		fishies[fish.name] = fish;
-		fs.writeFile(data_out+"/"+fish.name+".json", util.inspect(fish), "utf8", finish);
+		fs.writeFile(data_out+"/"+fish.name+"-fish.json", util.inspect(fish), "utf8");
 
-		//finish();
+		finish();
 	});
 }
 
@@ -499,11 +500,12 @@ var compile = function(finish) {
 
 	var compile = function(flag, thresh, output_filename) {
 
-		var fd = fs.openSync( output_filename, "w" );
-		fs.writeSync(fd, headings);
+		var fd = fs.openSync( output_filename, "w" );		// open the output file for writing
+		fs.writeSync(fd, headings);							// write the header line
 
+		// iterate through all the the little fishies
 		for(var name in fishies) {
-			var fish = fishies[name];
+			var fish = fishies[name];						// Wanda
 
 			var enough_typed = fish.pct_typed >= thresh;
 
@@ -542,7 +544,7 @@ var compile = function(finish) {
 				}
 			});
 
-			fs.writeSync(fd, a.join(",") + "\n");
+			fs.writeSync(fd, a.join(",") + "\n");	// write out array elements, separated with commas as a line
 		}
 
 		fs.close(fd);
