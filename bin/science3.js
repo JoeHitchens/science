@@ -348,7 +348,10 @@ one_fish = function(inpath, finish) {
 				fish.num_typed_het += 1;
 			}
 			else {
-				throwIf(true);
+				// > 2 && < 5
+				// e.g., 4.155  // xxx ?
+				fg.genotype = "??";
+				//throwIf(true, "fg.a1a2_ratio="+fg.a1a2_ratio);
 			}
 
 		});
@@ -446,7 +449,10 @@ one_fish = function(inpath, finish) {
 			sex_genoclass = "HET";
 		}
 		else {
-			throwIf(true, "ratio="+ratio);
+			// > 2 && < 5
+			// e.g., 4.155  // xxx ?
+			sex_genotype = "??";
+			//throwIf(true, "ratio="+ratio);
 		}
 
 		fs.writeSync( fd, "Ots_SEXY3-1,X="+adj_hits+",Y="+prb_hits+","+ratio+",,,,"+sex_genotype+","+sex_genoclass+",,,"+hits+","+hit_pct+"\n");
