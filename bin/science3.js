@@ -344,6 +344,7 @@ one_fish = function(inpath, finish) {
 				fg.genotype = g.allele1 + g.allele2;
 				fg.genoclass = "HET";
 				fish.num_typed += 1;
+				fish.num_typed_het += 1;
 			}
 			else {
 				throwIf(true);
