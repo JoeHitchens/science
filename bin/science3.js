@@ -9,15 +9,12 @@ require("sleepless");
 require("meet");
 
 
-// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
-// some generic helper functions used by the main code
-
-
+// writes out an object semi-readable form for debugging purposes
 dump = function(o) {
 	log(util.inspect(o));
 }
 
-// returns a reversed version of a string: "foo" becomes "oof"
+// attaches a function string objects that returns a reversed version of said string: "foo" becomes "oof"
 String.prototype.reverse = function() {
 	var o = '';
 	for (var i = this.length - 1; i >= 0; i--)
@@ -49,9 +46,9 @@ var mk_pct = function(t, f) {
 }
 
 // read the compressed file at "inpath" and write it back out to "outpath", call cb() when done
+// XXX This exec() won't work on windows; make the zlib version of this work
 gunzip = function(inpath, outpath, cb) {
 
-	// XXX This exec() won't work on windows; make the zlib version of this work
 	var cmd = "gunzip < \"" + inpath + "\" > \"" + outpath + "\"";
 	exec(cmd, function(err, stdout, stderr) {
 		throwIf(err);
@@ -68,15 +65,14 @@ gunzip = function(inpath, outpath, cb) {
 
 // -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
-
 data_in = process.argv[2] || "data_in";
 data_out = process.argv[3] || "data_out";
 assay_file = process.argv[4] || "assayinfo.txt";
 locus_file = process.argv[5] || "locusinfo.txt";
 
 
-var genes_h = {};				// hash of gene objects, tagged by name
-var genes_a = [];			// array of same objects, sorted by name
+var hash = {};			// temp hash of gene objects, tagged by name
+var genes_a = [];		// array of same objects, sorted by name
 
 var fishies = {};
 
@@ -91,25 +87,21 @@ fs.readFileSync( assay_file, "utf8" ).trim().split( "\n" ).forEach(function(line
 		probe1: cols[2].trim(),
 		probe2: cols[3].trim(),
 	};
+	g.probe1rc = rev_comp(g.probe1);
+	g.probe2rc = rev_comp(g.probe2);
 
-	genes_h[name] = g;
+	hash[name] = g;
 	genes_a.push(g);
 });
-
-genes_a.sort(function(a, b) {
-	if(a.name.toLowerCase() > b.name.toLowerCase()) return 1;
-	if(a.name.toLowerCase() < b.name.toLowerCase()) return -1;
-	return 0;
-});
-
 
 fs.readFileSync(locus_file, "utf8").trim().split("\n").forEach(function(line) {
 	var cols = line.trim().split(",");
 
 	var name = cols[0];
-	var g = genes_h[name];
+	var g = hash[name];
 	throwIf(!g);								// this gene name wasn't present in the assay info file
 	throwIf(g.name != name);					// gene name should match
+
 	if( g.fwd_prm != cols[5].trim() ) {
 		log( name+" Fwd Prm: assay="+g.fwd_prm+" locus="+cols[5].trim() );
 	}
@@ -126,10 +118,17 @@ fs.readFileSync(locus_file, "utf8").trim().split("\n").forEach(function(line) {
 	g.allele1 = cols[1].trim();
 	g.allele2 = cols[2].trim();
 
-	g.a1_corr = toFlt(cols[6]);				// correction factor?
-	g.a2_corr = toFlt(cols[7]);				// correction factor?
+	g.allele1_corr = toFlt(cols[6]);				// correction factor?
+	g.allele2_corr = toFlt(cols[7]);				// correction factor?
 
 });
+
+genes_a.sort(function(a, b) {
+	if(a.name.toLowerCase() > b.name.toLowerCase()) return 1;
+	if(a.name.toLowerCase() < b.name.toLowerCase()) return -1;
+	return 0;
+});
+
 
 
 
@@ -139,7 +138,7 @@ cmd = "find \""+data_in+"\" | grep .fastq.gz";
 exec(cmd, function(err, stdout, stderr) {
 	throwIf(err);
 
-	files = stdout.trim().split("\n");		// split the output of the find command into an array of lines, on per file
+	files = stdout.trim().split("\n");		// split the output of the find command into an array of lines, on per filename
 	log("Input directory \""+data_in+"\" contains "+files.length+" .fastq.gz files");
 
 	// queue each .fastq.gz for processing by one_fish()
@@ -149,134 +148,133 @@ exec(cmd, function(err, stdout, stderr) {
 	});
 
 	// compile the results of all fish
-	m.queue(geno_compile);
+	m.queue(compile);
 
 	m.allDone(process.exit);		// exit program
 });
 
 
 // process a single fish from the file at "inpath"; call finish() when finished.
-one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
+one_fish = function(inpath, finish) {
 
-	var fish = { };		// A fish!
+	var fish = { };				// A fish called Wanda
 
-	var file = path.basename(inpath);							// file: "file.gz"
-	fish.name = file.replace( /\.gz$/, "" );
-	var outpath = data_out + "/" + fish.name;					// outpath: "data_out/file"
+	var file = path.basename(inpath);					// 51085-016_S16_L001_R1_001.fastq.gz
+	fish.name = file.replace( /fastq\.gz$/, "" );		// 51085-016_S16_L001_R1_001
 
+	var outpath = data_out + "/" + fish.name;			// data_out/51085-016_S16_L001_R1_001
 
 	// uncompress and load in the fastq data
 	gunzip(inpath, outpath, function(data) {
 
-		if(data == "") {
-			log("skipping empty input file \""+file+"\".");
-			finish();
-			return;
+		// data is the uncompressed contents of the entire fastq file
+
+		throwIf(!data, "Empty input file: "+file);		// error if it's empty or something
+
+		var lines = data.trim().split("\n");			// break the data into lines
+
+		// create a temp array containing all the nucleotide sequences from the fastq data
+		var a = [];								// create the array (empty)
+		for(var i = 0; i < lines.length; i += 4) {		// traverse the lines, 4 at a time
+			throwIf(lines[i+2].trim() != "+");			// sanity check - expect this line to contain just a "+" sign
+			a.push( lines[ i + 1 ].trim() );	// add the line with the sequence to the array
 		}
+		log("FISH \""+fish.name+"\" ("+a.length+" sequences)");
+		// 'a' is like [ "ACTG...", "GTCA...", ... ]
 
+		fish.raw_reads = a.length;
 
-		// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
-		// convert the fastq data into an array of objects, one per sequence.
-
-		var lines = data.trim().split("\n");	// break the data into lines
-		delete data;
-		var sequences = [];
-		for(var i = 0; i < lines.length; i += 4) {
-			throwIf(lines[i+2].trim() != "+");	// sanity check - expect this line to contain just a "+" sign
-			sequences.push( lines[ i + 1 ].trim() );
-		}
-		log("processing \""+file+"\" ("+sequences.length+" sequences)");
-		fish.raw_reads = sequences.length;
-
-
-		// Build an array of counts, one entry per distinct sequence, sorted by count, highest to lowest
-		// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
 		// Create a hash with one entry per sequence, where the key is the nucleotide sequence,
 		// and the value is the number of times that sequence appears in the fastq data.
-		var hash = {};
-		sequences.forEach(function(seq) {
+		var hash = {};									// create an empty object ( a hash )
+		a.forEach(function(seq) {
 			hash[seq] = toInt(hash[seq]) + 1;
 		});
-		// hash: { "ACTG...": 123, "GTCA...": 456, ... }
+		// 'hash' is like { "ACTG...": 123, "GTCA...": 456, ... }
 
-		// Convert hash into an array.
+		// Convert the hash into an array.
 		// Each array entry is an object containing the sequence and count.
-		var sequence_counts = [];
+		var sequences = [];
 		for(var seq in hash) { 
-			sequence_counts.push( { sequence: seq, count: hash[seq] } );
+			sequences.push( { sequence: seq, count: hash[seq] } );
 		}
 
 		// Sort the array, largest count to smallest count.
-		sequence_counts.sort(function(a, b) {
+		sequences.sort(function(a, b) {
 			if(a.count < b.count) return  1;
 			if(a.count > b.count) return -1;
 			return 0;
 		});
-
-		// 'sequence_counts' now looks like: [ { sequence: "GTCA", count: 456 }, ... ]
-		//fish.sequence_counts = sequence_counts;
+		// 'sequences' is like [ { sequence: "GTCA", count: 456 }, ... ]
 
 
-		// count occurances of fwd prm, probes, on and off target reads
-		// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
+		fish.genes = {};				// this holds info for this fish related to the genes we're looking for
+		fish.on_target_reads = 0;
 
-		fish.ot_reads = 0;
-		fish.off_reads = 0;
-		fish.genes = {};
-
+		// traverse the list of genes in the assay/locus data
 		genes_a.forEach(function(g) {
 
+			// create gene tracking object for this gene
 			var fg = {
-				fwd_prm_count: 0,
-				probe1_count: 0,
-				probe2_count: 0,
-				ot_reads: 0,
+				p1_hits: 0,
+				p2_hits: 0,
+				on_target_reads: 0,
 			};
+			// add it to the fish
 			fish.genes[g.name] = fg;
 
-			var rx_fp = new RegExp( "^" + g.fwd_prm );		// matches fwd primer at beginning of sequence
-			var rx_p1 = new RegExp( g.probe1 );				// matches probe 1 anywhere in sequence
-			var rx_p1_rc = new RegExp( rev_comp(g.probe1) );
-			var rx_p2 = new RegExp( g.probe2 );				// matches probe 1 anywhere in sequence
-			var rx_p2_rc = new RegExp( rev_comp(g.probe2) );
+			//var rx_fp = new RegExp( "^" + g.fwd_prm );		// matches fwd primer at beginning of sequence
+			// var rx_p1 = new RegExp( g.probe1 );				// matches probe 1 anywhere in sequence
+			// var rx_p1_rc = new RegExp( rev_comp(g.probe1) );
+			// var rx_p2 = new RegExp( g.probe2 );				// matches probe 1 anywhere in sequence
+			// var rx_p2_rc = new RegExp( rev_comp(g.probe2) );
 
-			sequence_counts.forEach(function(sc) {
-				var seq = sc.sequence; 		// nucleotide sequence
-				var count = sc.count;		// # of times it appeared in fastq file
+			var p1 = g.probe1;
+			var p1rc = g.probe1rc;
+			var p2 = g.probe2;
+			var p2rc = g.probe2rc;
 
-				var m_f = rx_fp.test( seq );		// XXX speed up with s.startsWith() ?
+			var fwd_prm = g.fwd_prm;					// the fwd primer sequence for this gene
+			var fp_hits = 0;							// # of times fwd prm seen
+			var p1_hits = 0;							// # of times fwd prm AND probe1 seen together
+			var p2_hits = 0;							// # of times fwd prm AND probe2 seen together
+			var hits = 0;
+
+			sequences.forEach(function(sc) {
+				var seq = sc.sequence; 					// the nucleotide sequence
+				var count = sc.count;					// # of times it appeared in fastq file
+
+				var m_f = seq.indexOf(fwd_prm) == 0;	// true if sequence begins with forward primer
 				if(m_f) {
-					fg.fwd_prm_count += count;
-
-					if( rx_p1.test( seq ) || rx_p1_rc.test( seq ) ) {
-						if( m_f ) {
-							fg.probe1_count += count;
-							fish.ot_reads += count;
-						}
+					// sequence "starts" with fwd prm
+					fp_hits += count;
+					if( seq.indexOf(p1) != -1 || seq.indexOf(p1rc) != -1 ) {
+						// sequence contains either probe1 or its RC; on-target read for allele 1
+						p1_hits += count;
+						hits += count;
 					}
 					else 
-					if( rx_p2.test( seq ) || rx_p2_rc.test( seq ) ) {
-						if( m_f ) {
-							fg.probe2_count += count;
-							fish.ot_reads += count;
-						}
+					if( seq.indexOf(p2) != -1 || seq.indexOf(p2rc) != -1 ) {
+						// sequence contains either probe2 or its RC; on-target read for allele 2
+						p2_hits += count;
+						hits += count;
 					}
 				}
 			});
 
-			fg.ot_reads = fg.probe1_count + fg.probe2_count;
-			fg.ot_pct = mk_pct(fg.fwd_prm_count, fg.ot_reads);
-			fg.all_ot_pct = mk_pct(fish.ot_reads, fg.ot_reads);
+			fish.on_target_reads += hits;
+			
+			fg.p1_hits += p1_hits;
+			fg.p2_hits += p2_hits;
+			fg.on_target_reads = fg.p1_hits + fg.p2_hits;
+			fg.ot_pct = mk_pct(fp_hits, fg.on_target_reads);
+			fg.all_ot_pct = mk_pct(fish.on_target_reads, fg.on_target_reads);
 
 		});
 
-		fish.off_reads = fish.raw_reads - fish.ot_reads;
 
 
-
-// Genotyper
-// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
 		fish.hom_ct = 0;
 		fish.bkgrd_ct = 0;
@@ -294,22 +292,22 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 			var fg = fish.genes[g.name];
 
 			// uncorrected a1:a2 ratio
-			fg.a1a2_ratio_uncorr = toInt(((fg.probe1_count || 0.1) / (fg.probe2_count || 0.1)) * 1000) / 1000;
+			fg.a1a2_ratio_uncorr = toInt(((fg.p1_hits || 0.1) / (fg.p2_hits || 0.1)) * 1000) / 1000;
 
 			// apply correction factors (wtf is this?)
-			fg.corr_probe1_count = fg.probe1_count - ((fg.ot_reads / 4) * g.a1_corr);
-			fg.corr_probe2_count = fg.probe2_count - ((fg.ot_reads / 4) * g.a2_corr);
-			if(fg.corr_probe1_count < 0) fg.corr_probe1_count = 0;
-			if(fg.corr_probe2_count < 0) fg.corr_probe2_count = 0;
-			fg.corr_probe1_count = toInt(fg.corr_probe1_count);
-			fg.corr_probe2_count = toInt(fg.corr_probe2_count);
+			fg.corr_p1_hits = fg.p1_hits - ((fg.on_target_reads / 4) * g.allele1_corr);
+			fg.corr_p2_hits = fg.p2_hits - ((fg.on_target_reads / 4) * g.allele2_corr);
+			if(fg.corr_p1_hits < 0) fg.corr_p1_hits = 0;
+			if(fg.corr_p2_hits < 0) fg.corr_p2_hits = 0;
+			fg.corr_p1_hits = toInt(fg.corr_p1_hits);
+			fg.corr_p2_hits = toInt(fg.corr_p2_hits);
 			// a1:a2 ratio with correction
-			fg.a1a2_ratio = toInt(((fg.corr_probe1_count || 0.1) / (fg.corr_probe2_count || 0.1)) * 1000) / 1000;
+			fg.a1a2_ratio = toInt(((fg.corr_p1_hits || 0.1) / (fg.corr_p2_hits || 0.1)) * 1000) / 1000;
 
 			fg.genotype = "00";
 			fg.genoclass = "NA";
 
-			if((fg.corr_probe1_count + fg.corr_probe2_count) < 10) {
+			if((fg.corr_p1_hits + fg.corr_p2_hits) < 10) {
 				// low allele count	
 				fish.num_untyped += 1;
 				fish.num_untyped_low_allele_count += 1;
@@ -322,15 +320,15 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 				fish.num_typed += 1;
 				fish.num_typed_hom += 1;
 				fish.num_typed_hom_a1 += 1;
-					fish.hom_ct += fg.corr_probe1_count;
-					fish.bkgrd_ct += fg.corr_probe2_count;
+					fish.hom_ct += fg.corr_p1_hits;
+					fish.bkgrd_ct += fg.corr_p2_hits;
 			}
 			else
 			if(fg.a1a2_ratio < 10 && fg.a1a2_ratio > 5) {
 				// in-betweeners
 				fish.num_untyped += 1;
-					fish.hom_ct += fg.corr_probe1_count;
-					fish.bkgrd_ct += fg.corr_probe2_count;
+					fish.hom_ct += fg.corr_p1_hits;
+					fish.bkgrd_ct += fg.corr_p2_hits;
 			}
 			else
 			if(fg.a1a2_ratio <= 0.1) {
@@ -340,14 +338,14 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 				fish.num_typed += 1;
 				fish.num_typed_hom += 1;
 				fish.num_typed_hom_a2 += 1;
-					fish.hom_ct += fg.corr_probe2_count;
-					fish.bkgrd_ct += fg.corr_probe1_count;
+					fish.hom_ct += fg.corr_p2_hits;
+					fish.bkgrd_ct += fg.corr_p1_hits;
 			}
 			else
 			if(fg.a1a2_ratio <= 0.5) {
 				// in-betweeners
-				fish.hom_ct += fg.corr_probe2_count;
-					fish.bkgrd_ct += fg.corr_probe1_count;
+				fish.hom_ct += fg.corr_p2_hits;
+					fish.bkgrd_ct += fg.corr_p1_hits;
 					fish.num_untyped += 1;
 			}
 			else
@@ -361,7 +359,7 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 		});
 
 		fish.ifi = mk_pct(fish.hom_ct, fish.bkgrd_ct);
-		fish.ot_pct = mk_pct(fish.raw_reads, fish.ot_reads);
+		fish.ot_pct = mk_pct(fish.raw_reads, fish.on_target_reads);
 		fish.pct_typed = mk_pct(genes_a.length, fish.num_typed);
 
 
@@ -370,7 +368,7 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 		fs.writeSync( fd, [
 			file,
 			"Raw-Reads:" + fish.raw_reads,
-			"On-Target reads:" + fish.ot_reads,
+			"On-Target reads:" + fish.on_target_reads,
 			"%On-Target:" + fish.ot_pct,
 			"IFI_score:" + fish.ifi,
 		].join(",") + "\n" );
@@ -396,17 +394,17 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 			var fg = fish.genes[g.name];
 			fs.writeSync( fd, [
 				g.name,									// fish file name
-				g.allele1 + "="+ fg.probe1_count,		// # of reads for allele 1
-				g.allele2 + "="+fg.probe2_count,		// # of reads for allele 2
+				g.allele1 + "="+ fg.p1_hits,		// # of reads for allele 1
+				g.allele2 + "="+fg.p2_hits,		// # of reads for allele 2
 				fg.a1a2_ratio_uncorr,					// ratio A1:A2 
-				g.allele1 + "="+ fg.corr_probe1_count,	// # of reads for allele 1 corrected
-				g.allele2 + "="+fg.corr_probe2_count,	// # of reads for allele 2 corrected
+				g.allele1 + "="+ fg.corr_p1_hits,	// # of reads for allele 1 corrected
+				g.allele2 + "="+fg.corr_p2_hits,	// # of reads for allele 2 corrected
 				fg.a1a2_ratio,							// ratio A1:A2 corrected
 				fg.genotype,							// genotype
 				fg.genoclass,							// genotype class (HOM vs HET)
-				g.a1_corr,								// A1 correction factor
-				g.a2_corr,								// A2 correction factor
-				fg.ot_reads,							// # of reads for gene
+				g.allele1_corr,								// A1 correction factor
+				g.allele2_corr,								// A2 correction factor
+				fg.on_target_reads,							// # of reads for gene
 				fg.ot_pct,								// % on target for gene only
 				fg.all_ot_pct,							// % on target for gene in total on target reads (total on-target for fish)
 				"-",
@@ -419,7 +417,7 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 		var fp = 0;
 		var ot = 0;
 		var rx = new RegExp( "CCTACCAAGTACA" );
-		sequence_counts.forEach(function(sc) {
+		sequences.forEach(function(sc) {
 			var seq = sc.sequence;
 			var count = sc.count;
 
@@ -432,9 +430,9 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 		});
 
 		var ot_pct = mk_pct(fp, ot);
-		var all_ot_pct = mk_pct(fish.ot_reads, ot);
+		var all_ot_pct = mk_pct(fish.on_target_reads, ot);
 
-		var cntrl_counts = toInt(fish.ot_reads * 0.004);		// xxx ??
+		var cntrl_counts = toInt(fish.on_target_reads * 0.004);		// xxx ??
 
 		var ratio = Math.round((cntrl_counts / ot) * 1000) / 1000;
 
@@ -483,15 +481,14 @@ one_fish = function(inpath, finish) {							// inpath: "foo/bar/file.gz"
 }
 
 
-
-var geno_compile = function(finish) {
+var compile = function(finish) {
+	log("COMPILE: ");
 
 	var headings = "Sample,Raw Reads,On-Target Reads,%On-Target,%GT,IFI";
 	genes_a.forEach(function(g) {
 		headings += ","+g.name;
 	});
 	headings += "\n";
-
 
 	var compile = function(flag, thresh, output_filename) {
 
@@ -501,27 +498,27 @@ var geno_compile = function(finish) {
 		for(var name in fishies) {
 			var fish = fishies[name];
 
+			var enough_typed = fish.pct_typed >= thresh;
+
 			var a = [
 				fish.name,
 				fish.raw_reads,
-				fish.ot_reads,
+				fish.on_target_reads,
 				fish.ot_pct, 
 				mk_pct(genes_a.length, fish.num_typed),
 				fish.ifi,
 			];
-
-			var enough = fish.pct_typed >= thresh;
 
 			genes_a.forEach(function(g) {
 				var fg = fish.genes[g.name];
 
 				switch(flag) {
 				case "C":
-					a.push( fg.ot_reads );
+					a.push( fg.on_target_reads );
 					break;
 				case "N":
 					var nt = "-";
-					if(enough) {		// xxx
+					if(enough_typed) {		// xxx
 						nt = "00";
 						switch(fg.genoclass) {
 						case "A1HOM": nt = "11"; break;
@@ -541,85 +538,9 @@ var geno_compile = function(finish) {
 			fs.writeSync(fd, a.join(",") + "\n");
 		}
 
-		/*
-		files.forEach(function(file) {
-
-			var raw_reads = 0;
-			var on_target = 0;
-			var gt_pct = 0;
-			var ifi = 0;
-			var sample_name = file.filename.replace( /\.genos$/, "" );
-
-			var lines = file.lines;
-
-			lines.forEach(function(line, i) {
-				if(i == 0) {
-					// first line
-					raw_reads =  toInt(line[1].replace( /Raw-Reads:/, "" ));
-					ifi =  toFlt(line[4].replace( /IFI_score:/, "" ));
-					ot_readsx =  toFlt(line[2].replace( /On-Target:/, "" ));
-				}
-				else {
-					// remaining lines
-					if(line[4].match( /NA|00/)) {
-						gt_pct += 1;
-					}
-					// Ots_110495-380,G=0,C=459,0,CC,A2HOM,1.7,0,790,97.2,1.473,"-","-"
-					var count1 = toInt(line[1].split("=")[1]);		// 0 (G=0)
-					var count2 = toInt(line[2].split("=")[1]);		// 459 (C=459)
-					on_target += count1 + count2;
-				}
-			});
-
-
-			var num_targets = lines.length - 1;
-			gt_pct = 100 - mk_pct(num_targets, gt_pct); //gt_pct = (num_targets > 0) ? ((gt_pct / num_targets) * 100) : 0;
-
-			var ot_pct = mk_pct(raw_reads, on_target); //ot_pct = (raw_reads > 0) ? ((on_target / raw_reads) * 100) : 0;
-
-			var out = sample_name+","+raw_reads+","+on_target+","+ot_pct+","+gt_pct+","+ifi+",";
-
-			lines.forEach(function(line, i) {
-				if(i > 0) {
-					var geno = line[4];
-					var l_count = 0;
-					var x1 = toInt(line[1].split("=")[1]);
-					var x2 = toInt(line[2].split("=")[1]);
-					l_count = x1 + x2;
-
-					var numgt = "00";
-					switch(line[5]) {
-					case "A1HOM": numgt = "11"; break;
-					case "HET": numgt = "12"; break;
-					case "A2HOM": numgt = "22"; break;
-					//case "NA": numgt = "00"; break;
-					}
-
-					if(flag == "S")
-						out += geno+",";
-					else
-					if(flag == "C")
-						out += l_count+",";
-					else
-					if(flag == "N" && gt_pct >= thresh)
-						out += numgt+",";
-					//else
-					//	out += "\"-\",";
-
-				}
-
-			});
-
-			out += "\n";
-
-			fs.writeSync(fd, out);
-		});
-		*/
-
 		fs.close(fd);
 	}
 
-	//compile(files, "S", 0, data_out+"/compiled.csv");					// this is same as compiled_snps.csv
 	compile("C", 0, data_out+"/compiled_counts.csv");
 	compile("S", 0, data_out+"/compiled_snps.csv");
 	compile("N", 90, data_out+"/compiled_numeric.csv");
