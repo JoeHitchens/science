@@ -1,20 +1,39 @@
 
-util = require("util");
-fs = require("fs");
-path = require("path");
-zlib = require("zlib");
-exec = require("child_process").exec;
 
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+// Fishy Science Version 3
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+
+// -----------------------------
+// Pull in some external modules/librarires
+// -----------------------------
+
+// standard node.js modules
+var util = require("util");
+var fs = require("fs");
+var path = require("path");
+var zlib = require("zlib");
+var exec = require("child_process").exec;
+
+// sleepless inc. modules
 require("sleepless");
 require("meet");
 
 
-// writes out an object semi-readable form for debugging purposes
-dump = function(o) {
+
+// -----------------------------
+// Misc. supporting functions
+// -----------------------------
+
+
+// Writes out an object semi-readable form for debugging purposes
+var dump = function(o) {
 	log(util.inspect(o));
 }
 
-// attaches a function string objects that returns a reversed version of said string: "foo" becomes "oof"
+
+// Returns a reversed version of a string: "foo" becomes "oof"
 String.prototype.reverse = function() {
 	var o = '';
 	for (var i = this.length - 1; i >= 0; i--)
@@ -22,7 +41,8 @@ String.prototype.reverse = function() {
 	return o;
 }
 
-// return the reverse complement version of the nucleotide sequence in "s": "ACTG" becomes "CAGT"
+
+// Return the reverse complement version of the nucleotide sequence in "s": "ACTG" becomes "CAGT"
 var rev_comp = function(s) {
 	return s
 		.reverse()
@@ -37,7 +57,8 @@ var rev_comp = function(s) {
 		.toUpperCase();
 }
 
-// return a percentage as a number to 2 decimal places: mk_pct(6, 2) returns 33.33 (2 is 33.33% of 6)
+
+// Return a percentage as a number to 2 decimal places: mk_pct(6, 2) returns 33.33 (2 is 33.33% of 6)
 var mk_pct = function(t, f) {
 	if(f <= 0) {
 		return 0;
@@ -45,9 +66,10 @@ var mk_pct = function(t, f) {
 	return Math.round((f / t) * 10000) / 100;
 }
 
-// read the compressed file at "inpath" and write it back out to "outpath", call cb() when done
+
+// Read the compressed file at "inpath" and write it back out to "outpath", call cb() when done
 // XXX This exec() won't work on windows; make the zlib version of this work
-gunzip = function(inpath, outpath, cb) {
+var gunzip = function(inpath, outpath, cb) {
 
 	var cmd = "gunzip < \"" + inpath + "\" > \"" + outpath + "\"";
 	exec(cmd, function(err, stdout, stderr) {
@@ -63,20 +85,28 @@ gunzip = function(inpath, outpath, cb) {
 
 }
 
-// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
 
-data_in = process.argv[2] || "data_in";
-data_out = process.argv[3] || "data_out";
-assay_file = process.argv[4] || "assayinfo.txt";
-locus_file = process.argv[5] || "locusinfo.txt";
+// -----------------------------
+// Here's where we start the real science work
+// -----------------------------
+
+var data_in = process.argv[2] || "data_in";
+var data_out = process.argv[3] || "data_out";
+var assay_file = process.argv[4] || "assayinfo.txt";
+var locus_file = process.argv[5] || "locusinfo.txt";
+
+var fishies = {};		// hash/object that holds all the fish.  added as they're processed.  tagged by fish name (e.g., "51085-016_S16_L001_R1_001")
+
+var gene_info = [];		// array of same objects, sorted by name
 
 
-var hash = {};			// temp hash of gene objects, tagged by name
-var genes_a = [];		// array of same objects, sorted by name
 
-var fishies = {};
+// -----------------------------
+// Load and preprocess the gene information from the assay and locus files
+// -----------------------------
+var hash = {};			// temporary hash of gene objects, tagged by name
 
-
+// load the assay and put info into hash
 fs.readFileSync( assay_file, "utf8" ).trim().split( "\n" ).forEach(function(line) {
 	var cols = line.trim().split( /\s+/ );
 
@@ -91,39 +121,41 @@ fs.readFileSync( assay_file, "utf8" ).trim().split( "\n" ).forEach(function(line
 	g.probe2rc = rev_comp(g.probe2);
 
 	hash[name] = g;
-	genes_a.push(g);
+	gene_info.push(g);
 });
 
+// load the locus file and merge info into hash
 fs.readFileSync(locus_file, "utf8").trim().split("\n").forEach(function(line) {
 	var cols = line.trim().split(",");
 
 	var name = cols[0];
 	var g = hash[name];
-	throwIf(!g);								// this gene name wasn't present in the assay info file
-	throwIf(g.name != name);					// gene name should match
+	throwIf(!g);							// sanity check: this gene name wasn't in the assay file
+	throwIf(g.name != name);				// sanity check: gene name should match
 
-	if( g.fwd_prm != cols[5].trim() ) {
-		log( name+" Fwd Prm: assay="+g.fwd_prm+" locus="+cols[5].trim() );
-	}
-	//throwIf(g.fwd_prm != cols[5].trim());		// fwd primer should match
-	if(g.probe1 != cols[3].trim() ) {
-		log( name+" Probe 1: assay="+g.probe1+" locus="+cols[3].trim() );
-	}
-	//throwIf(g.probe1 != cols[3].trim(), g.probe1+" != "+cols[3].trim());		// probe 1 primer should match
-	if(g.probe2 != cols[4].trim() ) {
-		log( name+" Probe 2: assay="+g.probe2+" locus="+cols[4].trim() );
-	}
-	//throwIf(g.probe2 != cols[4].trim());		// probe 2 primer should match
+	//if( g.fwd_prm != cols[5].trim() ) {
+	//	log( name+"  Fwd Prm: assay="+g.fwd_prm+" locus="+cols[5].trim() );
+	//}
+	throwIf(g.fwd_prm != cols[5].trim());	// sanity check: fwd primer should match
+	//if(g.probe1 != cols[3].trim() ) {
+	//	log( name+" Probe 1: assay="+g.probe1+" locus="+cols[3].trim() );
+	//}
+	throwIf(g.probe1 != cols[3].trim());	// sanity check: probe 1 primer should match
+	//if(g.probe2 != cols[4].trim() ) {
+	//	log( name+" Probe 2: assay="+g.probe2+" locus="+cols[4].trim() );
+	//}
+	throwIf(g.probe2 != cols[4].trim());	// sanity check: probe 2 primer should match
 
-	g.allele1 = cols[1].trim();
+	g.allele1 = cols[1].trim();				// single nucleotide letter, like "A" or "G"
 	g.allele2 = cols[2].trim();
 
-	g.a1_corr = toFlt(cols[6]);				// correction factor?
-	g.a2_corr = toFlt(cols[7]);				// correction factor?
+	g.a1_corr = toFlt(cols[6]);				// correction factor
+	g.a2_corr = toFlt(cols[7]);				// correction factor
 
 });
 
-genes_a.sort(function(a, b) {
+// Sort gene_info by gene name, case insignificant
+gene_info.sort(function(a, b) {
 	if(a.name.toLowerCase() > b.name.toLowerCase()) return 1;
 	if(a.name.toLowerCase() < b.name.toLowerCase()) return -1;
 	return 0;
@@ -132,8 +164,11 @@ genes_a.sort(function(a, b) {
 
 
 
-// scan "data_in" for any files, in any sub-directories that end with .fasq.gz
-// XXX This exec() won't work on windows; walk the tree manually instead
+// -----------------------------
+// Start processing the fast.q data.
+// Scan "data_in" for all files, in any sub-directories that end with .fasq.gz
+// XXX This exec() won't work on windows; walk the tree manually
+// -----------------------------
 cmd = "find \""+data_in+"\" | grep .fastq.gz";
 exec(cmd, function(err, stdout, stderr) {
 	throwIf(err);
@@ -141,60 +176,75 @@ exec(cmd, function(err, stdout, stderr) {
 	files = stdout.trim().split("\n");		// split the output of the find command into an array of lines, on per filename
 	log("Input directory \""+data_in+"\" contains "+files.length+" .fastq.gz files");
 
-	// queue each .fastq.gz for processing by one_fish()
 	var m = new Meet();
+
+	// queue each .fastq.gz for processing by one_fish()
 	files.forEach(function(file) {
 		m.queue(one_fish, file);
 	});
 
-	// compile the results of all fish
-	m.queue(compile);
+	m.queue(compile);				// then compile the results of all fish
 
 	m.allDone(process.exit);		// exit program
 });
 
 
-// process a single fish from the fastq file at "inpath".  call finish() when done.
+
+// -----------------------------
+// Process a single fish from the fastq file at "inpath".
+// Call finish() when done.
+// -----------------------------
 one_fish = function(inpath, finish) {
 
-	var fish = { };			// This object will hold the relevant info collected about this fish
+	var fish = { };			// create object to hold relevant info collected about this fish
+
 
 	var file = path.basename(inpath);					// 51085-016_S16_L001_R1_001.fastq.gz
 	fish.name = file.replace( /\.fastq\.gz$/, "" );		// 51085-016_S16_L001_R1_001
 
 	var outpath = data_out + "/" + fish.name;			// data_out/51085-016_S16_L001_R1_001
 
+
 	// uncompress and load in the fastq data
 	gunzip(inpath, outpath, function(data) {
 
 		// data is the uncompressed contents of the entire fastq file
 
-		//throwIf(!data, "Empty input file: "+file);		// error if it's empty or something
 		if(!data) {
 			log("Skipping empty input file: "+file);
 			finish();
 			return;
 		}
 
+
+		// -----------------------------
+		// Hash the sequence data
+		// -----------------------------
+
 		var lines = data.trim().split("\n");			// break the data into lines
 
-		// create a temp array containing all the nucleotide sequences from the fastq data
-		var a = [];								// create the array (empty)
-		for(var i = 0; i < lines.length; i += 4) {		// traverse the lines, 4 at a time
-			throwIf(lines[i+2].trim() != "+");			// sanity check - expect this line to contain just a "+" sign
-			a.push( lines[ i + 1 ].trim() );	// add the line with the sequence to the array
+		// create temp array, "a", containing all the nucleotide sequences from the fastq data, discarding the rest of the data
+		var a = [];									// create the array (empty)
+		for(var i = 0; i < lines.length; i += 4) {	// traverse the lines in groups of 4
+			throwIf( lines[i+2].trim() != "+" );	// sanity check - expect this line to contain just a "+" sign
+			a.push( lines[i+1].trim() );			// add the line with the sequence to the array
 		}
+		// 'a' looks like [ "ACTG...", "GTCA...", ... ]
 		log("FISH \""+fish.name+"\" ("+a.length+" sequences)");
-		// 'a' is like [ "ACTG...", "GTCA...", ... ]
 
-		fish.raw_reads = a.length;
+		fish.raw_reads = a.length;					// note the # of raw reads found in the fastq file (sex line line not included)
 
 
-		// Create a hash with one entry per sequence, where the key is the nucleotide sequence,
+		// Create a temporary hash with one entry per unique sequence, where the key is the actual sequence
 		// and the value is the number of times that sequence appears in the fastq data.
-		var hash = {};									// create an empty object ( a hash )
+		var hash = {};									// create empty object
 		a.forEach(function(seq) {
-			hash[seq] = toInt(hash[seq]) + 1;
+			if(!hash[seq]) {
+				hash[seq] = 1;
+			}
+			else {
+				hash[seq] += 1;
+			}
 		});
 		// 'hash' is like { "ACTG...": 123, "GTCA...": 456, ... }
 
@@ -215,11 +265,16 @@ one_fish = function(inpath, finish) {
 		fs.writeFileSync(outpath+"-hash.json", util.inspect(sequences), "utf8");
 
 
+
+		// -----------------------------
+		// Scan for and count genes and alleles
+		// -----------------------------
+
 		fish.genes = {};				// this holds info for this fish related to the genes we're looking for
 		fish.hits = 0;					// hits is my name for "on-target reads"
 
 		// traverse the list of genes in the assay/locus data
-		genes_a.forEach(function(g) {
+		gene_info.forEach(function(g) {
 
 			var fwd_prm = g.fwd_prm;					// the fwd primer sequence for this gene
 			var p1 = g.probe1;							// probe1 sequence for this gene
@@ -235,7 +290,7 @@ one_fish = function(inpath, finish) {
 			sequences.forEach(function(sc) {
 				var seq = sc.sequence; 					// the nucleotide sequence
 				var count = sc.count;					// # time seq seen in fastq data
-				if(seq.indexOf(fwd_prm) == 0) {
+				if(seq.substr(0, fwd_prm.length) == fwd_prm) {
 					// sequence "starts" with fwd prm
 					fp_hits += count;
 					if( seq.indexOf(p1) != -1 || seq.indexOf(p1rc) != -1 ) {
@@ -252,7 +307,7 @@ one_fish = function(inpath, finish) {
 
 			// create gene tracking object for this gene (for this fish)
 			var fg = {};
-			fish.genes[g.name] = fg;		// attach tracking object to fish using gene name as tag (same as genes_a)
+			fish.genes[g.name] = fg;		// attach tracking object to fish using gene name as tag (same as gene_info)
 
 			fg.p1_hits = p1_hits;			// probe1 hits for this gene, this fish
 			fg.p2_hits = p2_hits;			// probe2 hits for this gene, this fish
@@ -263,11 +318,16 @@ one_fish = function(inpath, finish) {
 
 		});
 		// compute hit_pct_fish after all genes scanned so fish.hits is valid when I do so
-		genes_a.forEach(function(g) {
+		gene_info.forEach(function(g) {
 			var fg = fish.genes[g.name];	// gene tracking object
 			fg.hit_pct_fish = mk_pct(fish.hits, fg.hits);
 		});
 
+
+
+		// -----------------------------
+		// Derive genotype info
+		// -----------------------------
 
 		// xxx ifi?
 		/**/ fish.hom_ct = 0;
@@ -280,7 +340,7 @@ one_fish = function(inpath, finish) {
 		fish.num_typed_hom_a2 = 0;
 		fish.num_typed_het = 0;
 
-		genes_a.forEach(function(g) {
+		gene_info.forEach(function(g) {
 			var fg = fish.genes[g.name];	// gene tracking object
 
 			// uncorrected a1:a2 ratio
@@ -358,10 +418,14 @@ one_fish = function(inpath, finish) {
 
 		/**/ fish.ifi = mk_pct(fish.hom_ct, fish.bkgrd_ct);
 		fish.hit_pct = mk_pct(fish.raw_reads, fish.hits);
-		fish.pct_typed = mk_pct(genes_a.length, fish.num_typed);
+		fish.pct_typed = mk_pct(gene_info.length, fish.num_typed);
 
 
-		// write out the genos file
+
+		// -----------------------------
+		// Write out the genos file
+		// -----------------------------
+
 		var fd = fs.openSync( outpath + "-genos.csv", "w" );
 		fs.writeSync( fd, [
 			file,
@@ -370,7 +434,6 @@ one_fish = function(inpath, finish) {
 			"% On-Target," + fish.hit_pct,
 			"IFI score," + fish.ifi,
 		].join("\n") + "\n" );
-
 		fs.writeSync( fd, "\n" );
 
 		fs.writeSync( fd, [
@@ -389,12 +452,10 @@ one_fish = function(inpath, finish) {
 			"% On-target gene",
 			"% On-target fish ",
 		].join(",") + "\n" );
-
-
 		fs.writeSync( fd, "\n" );
 
 
-		// do the sexy business
+		// determine sex and write out line for it
 		var fp_hits = 0;
 		var prb_hits = 0;
 		var hits = 0;
@@ -456,11 +517,11 @@ one_fish = function(inpath, finish) {
 		}
 
 		fs.writeSync( fd, "Ots_SEXY3-1,X="+adj_hits+",Y="+prb_hits+","+ratio+",,,,"+sex_genotype+","+sex_genoclass+",,,"+hits+","+hit_pct+"\n");
-
 		fs.writeSync( fd, "\n" );
 
 
-		genes_a.forEach(function(g) {
+		// Write out a line for each gene
+		gene_info.forEach(function(g) {
 			var fg = fish.genes[g.name];
 			fs.writeSync( fd, [
 				g.name,									// fish file name
@@ -481,25 +542,31 @@ one_fish = function(inpath, finish) {
 				"-",
 			].join(",") + "\n");
 		});
+		fs.writeSync( fd, "\n" );
 
 
-		fs.close(fd);
+		fs.close(fd);		// finish off the genos file
 
-
-		// All done; add this fish the growing school of processed fish.
-		fishies[fish.name] = fish;
+		// write out a JSON file containing the whole fish object
 		fs.writeFile(data_out+"/"+fish.name+"-fish.json", util.inspect(fish), "utf8");
+
+
+		// All done with this fish; add it to the growing school of processed fish.
+		fishies[fish.name] = fish;
 
 		finish();
 	});
 }
 
 
+// -----------------------------
+// Compile data about all the fish into a several csv files
+// -----------------------------
 var compile = function(finish) {
 	log("COMPILE: ");
 
-	var headings = "Sample,Raw Reads,On-Target Reads,%On-Target,%GT,IFI";
-	genes_a.forEach(function(g) {
+	var headings = "Sample,Raw Reads,On-Target Reads,%On-Target,%GT,IFI,";
+	gene_info.forEach(function(g) {
 		headings += ","+g.name;
 	});
 	headings += "\n";
@@ -513,18 +580,20 @@ var compile = function(finish) {
 		for(var name in fishies) {
 			var fish = fishies[name];						// Wanda
 
-			var enough_typed = fish.pct_typed >= thresh;
+			var enough_typed = fish.pct_typed >= thresh;	// XXX this is only being used for "N" - why not others?
 
 			var a = [
 				fish.name,
 				fish.raw_reads,
 				fish.hits,
 				fish.hit_pct, 
-				mk_pct(genes_a.length, fish.num_typed),
+				mk_pct(gene_info.length, fish.num_typed),
 				fish.ifi,
+				"",
 			];
 
-			genes_a.forEach(function(g) {
+			// iterate through the genes and output a column for each
+			gene_info.forEach(function(g) {
 				var fg = fish.genes[g.name];
 
 				switch(flag) {
