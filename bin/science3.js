@@ -118,8 +118,8 @@ fs.readFileSync(locus_file, "utf8").trim().split("\n").forEach(function(line) {
 	g.allele1 = cols[1].trim();
 	g.allele2 = cols[2].trim();
 
-	g.allele1_corr = toFlt(cols[6]);				// correction factor?
-	g.allele2_corr = toFlt(cols[7]);				// correction factor?
+	g.a1_corr = toFlt(cols[6]);				// correction factor?
+	g.a2_corr = toFlt(cols[7]);				// correction factor?
 
 });
 
@@ -154,13 +154,13 @@ exec(cmd, function(err, stdout, stderr) {
 });
 
 
-// process a single fish from the file at "inpath"; call finish() when finished.
+// process a single fish from the fastq file at "inpath".  call finish() when done.
 one_fish = function(inpath, finish) {
 
-	var fish = { };				// A fish called Wanda
+	var fish = { };			// This object will hold the relevant info collected about this fish
 
 	var file = path.basename(inpath);					// 51085-016_S16_L001_R1_001.fastq.gz
-	fish.name = file.replace( /fastq\.gz$/, "" );		// 51085-016_S16_L001_R1_001
+	fish.name = file.replace( /\.fastq\.gz$/, "" );		// 51085-016_S16_L001_R1_001
 
 	var outpath = data_out + "/" + fish.name;			// data_out/51085-016_S16_L001_R1_001
 
@@ -169,7 +169,12 @@ one_fish = function(inpath, finish) {
 
 		// data is the uncompressed contents of the entire fastq file
 
-		throwIf(!data, "Empty input file: "+file);		// error if it's empty or something
+		//throwIf(!data, "Empty input file: "+file);		// error if it's empty or something
+		if(!data) {
+			log("Skipping empty input file: "+file);
+			finish();
+			return;
+		}
 
 		var lines = data.trim().split("\n");			// break the data into lines
 
@@ -210,93 +215,79 @@ one_fish = function(inpath, finish) {
 
 
 		fish.genes = {};				// this holds info for this fish related to the genes we're looking for
-		fish.on_target_reads = 0;
+		fish.hits = 0;					// hits is my name for "on-target reads"
 
 		// traverse the list of genes in the assay/locus data
 		genes_a.forEach(function(g) {
 
-			// create gene tracking object for this gene
-			var fg = {
-				p1_hits: 0,
-				p2_hits: 0,
-				on_target_reads: 0,
-			};
-			// add it to the fish
-			fish.genes[g.name] = fg;
-
-			//var rx_fp = new RegExp( "^" + g.fwd_prm );		// matches fwd primer at beginning of sequence
-			// var rx_p1 = new RegExp( g.probe1 );				// matches probe 1 anywhere in sequence
-			// var rx_p1_rc = new RegExp( rev_comp(g.probe1) );
-			// var rx_p2 = new RegExp( g.probe2 );				// matches probe 1 anywhere in sequence
-			// var rx_p2_rc = new RegExp( rev_comp(g.probe2) );
-
-			var p1 = g.probe1;
-			var p1rc = g.probe1rc;
-			var p2 = g.probe2;
-			var p2rc = g.probe2rc;
-
 			var fwd_prm = g.fwd_prm;					// the fwd primer sequence for this gene
+			var p1 = g.probe1;							// probe1 sequence for this gene
+			var p1rc = g.probe1rc;						// probe1's RC
+			var p2 = g.probe2;							// probe2 sequence for this gene
+			var p2rc = g.probe2rc;						// probe2's RC
+
+			// init counters
 			var fp_hits = 0;							// # of times fwd prm seen
 			var p1_hits = 0;							// # of times fwd prm AND probe1 seen together
 			var p2_hits = 0;							// # of times fwd prm AND probe2 seen together
-			var hits = 0;
 
 			sequences.forEach(function(sc) {
 				var seq = sc.sequence; 					// the nucleotide sequence
-				var count = sc.count;					// # of times it appeared in fastq file
-
-				var m_f = seq.indexOf(fwd_prm) == 0;	// true if sequence begins with forward primer
-				if(m_f) {
+				var count = sc.count;					// # time seq seen in fastq data
+				if(seq.indexOf(fwd_prm) == 0) {
 					// sequence "starts" with fwd prm
 					fp_hits += count;
 					if( seq.indexOf(p1) != -1 || seq.indexOf(p1rc) != -1 ) {
-						// sequence contains either probe1 or its RC; on-target read for allele 1
+						// sequence contains either probe1 or its RC
 						p1_hits += count;
-						hits += count;
 					}
 					else 
 					if( seq.indexOf(p2) != -1 || seq.indexOf(p2rc) != -1 ) {
-						// sequence contains either probe2 or its RC; on-target read for allele 2
+						// sequence contains either probe2 or its RC
 						p2_hits += count;
-						hits += count;
 					}
 				}
 			});
 
-			fish.on_target_reads += hits;
-			
-			fg.p1_hits += p1_hits;
-			fg.p2_hits += p2_hits;
-			fg.on_target_reads = fg.p1_hits + fg.p2_hits;
-			fg.ot_pct = mk_pct(fp_hits, fg.on_target_reads);
-			fg.all_ot_pct = mk_pct(fish.on_target_reads, fg.on_target_reads);
+			// create gene tracking object for this gene (for this fish)
+			var fg = {};
+			fish.genes[g.name] = fg;		// attach tracking object to fish using gene name as tag (same as genes_a)
 
+			fg.p1_hits = p1_hits;			// probe1 hits for this gene, this fish
+			fg.p2_hits = p2_hits;			// probe2 hits for this gene, this fish
+			fg.hits = p1_hits + p2_hits;	// sum of probe1 and probe2 hits (on-target reads for this gene, this fish)
+			fg.hit_pct = mk_pct(fp_hits, fg.hits);	// ratio of probe-hits:fwd-prm-hits
+
+			fish.hits += fg.hits;			// add all the hits for this gene to the # of hits for the whole fish
+
+		});
+		// compute hit_pct_fish after all genes scanned so fish.hits is valid when I do so
+		genes_a.forEach(function(g) {
+			var fg = fish.genes[g.name];	// gene tracking object
+			fg.hit_pct_fish = mk_pct(fish.hits, fg.hits);
 		});
 
 
+		// xxx ifi?
+		/**/ fish.hom_ct = 0;
+		/**/ fish.bkgrd_ct = 0;
+		/**/ fish.ifi = 0;
 
-
-		fish.hom_ct = 0;
-		fish.bkgrd_ct = 0;
-		fish.ifi = 0;
 		fish.num_typed = 0;
 		fish.num_typed_hom = 0;
 		fish.num_typed_hom_a1 = 0;
 		fish.num_typed_hom_a2 = 0;
 		fish.num_typed_het = 0;
-		fish.num_untyped = 0;
-		fish.num_untyped_low_allele_count = 0;
 
 		genes_a.forEach(function(g) {
-
-			var fg = fish.genes[g.name];
+			var fg = fish.genes[g.name];	// gene tracking object
 
 			// uncorrected a1:a2 ratio
 			fg.a1a2_ratio_uncorr = toInt(((fg.p1_hits || 0.1) / (fg.p2_hits || 0.1)) * 1000) / 1000;
 
-			// apply correction factors (wtf is this?)
-			fg.corr_p1_hits = fg.p1_hits - ((fg.on_target_reads / 4) * g.allele1_corr);
-			fg.corr_p2_hits = fg.p2_hits - ((fg.on_target_reads / 4) * g.allele2_corr);
+			// apply correction factors (xxx wtf is this anyway?)
+			fg.corr_p1_hits = fg.p1_hits - ((fg.hits / 4) * g.a1_corr);
+			fg.corr_p2_hits = fg.p2_hits - ((fg.hits / 4) * g.a2_corr);
 			if(fg.corr_p1_hits < 0) fg.corr_p1_hits = 0;
 			if(fg.corr_p2_hits < 0) fg.corr_p2_hits = 0;
 			fg.corr_p1_hits = toInt(fg.corr_p1_hits);
@@ -304,13 +295,12 @@ one_fish = function(inpath, finish) {
 			// a1:a2 ratio with correction
 			fg.a1a2_ratio = toInt(((fg.corr_p1_hits || 0.1) / (fg.corr_p2_hits || 0.1)) * 1000) / 1000;
 
-			fg.genotype = "00";
+			//fg.genotype = "00";
 			fg.genoclass = "NA";
 
 			if((fg.corr_p1_hits + fg.corr_p2_hits) < 10) {
 				// low allele count	
-				fish.num_untyped += 1;
-				fish.num_untyped_low_allele_count += 1;
+				fg.genotype = "-lac-";
 			}
 			else
 			if(fg.a1a2_ratio >= 10) {
@@ -320,15 +310,15 @@ one_fish = function(inpath, finish) {
 				fish.num_typed += 1;
 				fish.num_typed_hom += 1;
 				fish.num_typed_hom_a1 += 1;
-					fish.hom_ct += fg.corr_p1_hits;
-					fish.bkgrd_ct += fg.corr_p2_hits;
+				/**/ fish.hom_ct += fg.corr_p1_hits;
+				/**/ fish.bkgrd_ct += fg.corr_p2_hits;
 			}
 			else
 			if(fg.a1a2_ratio < 10 && fg.a1a2_ratio > 5) {
 				// in-betweeners
-				fish.num_untyped += 1;
-					fish.hom_ct += fg.corr_p1_hits;
-					fish.bkgrd_ct += fg.corr_p2_hits;
+				/**/ fish.hom_ct += fg.corr_p1_hits;
+				/**/ fish.bkgrd_ct += fg.corr_p2_hits;
+				fg.genotype = "-ib1-";
 			}
 			else
 			if(fg.a1a2_ratio <= 0.1) {
@@ -338,15 +328,15 @@ one_fish = function(inpath, finish) {
 				fish.num_typed += 1;
 				fish.num_typed_hom += 1;
 				fish.num_typed_hom_a2 += 1;
-					fish.hom_ct += fg.corr_p2_hits;
-					fish.bkgrd_ct += fg.corr_p1_hits;
+				/**/ fish.hom_ct += fg.corr_p2_hits;
+				/**/ fish.bkgrd_ct += fg.corr_p1_hits;
 			}
 			else
 			if(fg.a1a2_ratio <= 0.5) {
 				// in-betweeners
 				fish.hom_ct += fg.corr_p2_hits;
-					fish.bkgrd_ct += fg.corr_p1_hits;
-					fish.num_untyped += 1;
+				/**/ fish.bkgrd_ct += fg.corr_p1_hits;
+				fg.genotype = "-ib2-";
 			}
 			else
 			if(fg.a1a2_ratio <= 2) {
@@ -355,31 +345,36 @@ one_fish = function(inpath, finish) {
 				fg.genoclass = "HET";
 				fish.num_typed += 1;
 			}
+			else {
+				throwIf(true);
+			}
 
 		});
 
-		fish.ifi = mk_pct(fish.hom_ct, fish.bkgrd_ct);
-		fish.ot_pct = mk_pct(fish.raw_reads, fish.on_target_reads);
+		/**/ fish.ifi = mk_pct(fish.hom_ct, fish.bkgrd_ct);
+		fish.hit_pct = mk_pct(fish.raw_reads, fish.hits);
 		fish.pct_typed = mk_pct(genes_a.length, fish.num_typed);
 
 
-		// write out the .genos file
-		var fd = fs.openSync( outpath + ".genos", "w" );
+		// write out the .genos.csv file
+		var fd = fs.openSync( outpath + ".genos.csv", "w" );
 		fs.writeSync( fd, [
 			file,
-			"Raw-Reads:" + fish.raw_reads,
-			"On-Target reads:" + fish.on_target_reads,
-			"%On-Target:" + fish.ot_pct,
-			"IFI_score:" + fish.ifi,
-		].join(",") + "\n" );
+			"Raw-Reads," + fish.raw_reads,
+			"On-Target reads," + fish.hits,
+			"% On-Target," + fish.hit_pct,
+			"IFI score," + fish.ifi,
+		].join("\n") + "\n" );
+
+		fs.writeSync( fd, "\n" );
 
 		fs.writeSync( fd, [
-			"Fish",
-			"# Allele 1",
-			"# Allele 2",
+			"Gene",
+			"# A1",
+			"# A2",
 			"A1:A2 ratio",
-			"# Allele 1 corr.",
-			"# Allele 2 corr.",
+			"# A1 corr.",
+			"# A2 corr.",
 			"A1:A2 ratio corr.",
 			"Geno type",
 			"Geno class",
@@ -389,6 +384,73 @@ one_fish = function(inpath, finish) {
 			"% On-target gene",
 			"% On-target fish ",
 		].join(",") + "\n" );
+
+
+		fs.writeSync( fd, "\n" );
+
+
+		// do the sexy business
+		var fp_hits = 0;
+		var prb_hits = 0;
+		var hits = 0;
+		sequences.forEach(function(sc) {
+			var seq = sc.sequence;
+			var count = sc.count;
+			if(seq.indexOf("CACAACATGAGCTCATGGG") == 0) {
+				fp_hits += 1; //count;
+				if( seq.indexOf("CCTACCAAGTACA") != -1) {
+					prb_hits += count;
+					hits += 1; //count;
+				}
+			}
+		});
+
+		if(fp_hits == 0)
+			fp_hits = 1;
+
+		var hit_pct = mk_pct(fp_hits, prb_hits);
+		var adj_hits = toInt(fish.hits * 0.004);		// xxx ??
+		if(adj_hits == 0)
+			adj_hits = 1;
+		if(prb_hits == 0)
+			prb_hits = 1;
+		var ratio = Math.round((adj_hits / prb_hits) * 1000) / 1000;
+		var sex_genotype = "00";
+		var sex_genoclass = "NA";
+		if(adj_hits + prb_hits < 10) {
+			sex_genotype = "-lac-";
+		}
+		else
+		if(ratio >= 10) {
+			sex_genotype = "XX";
+			sex_genoclass = "A1HOM";
+		}
+		else
+		if(ratio < 10 && ratio > 5) {
+			sex_genotype = "-ib1-";
+		}
+		else
+		if(ratio <= 0.1) {
+			sex_genotype = "XY";
+			sex_genoclass = "A2HOM";
+		}
+		else
+		if(ratio <= 0.5) {
+			sex_genotype = "-ib2-";
+		}
+		else
+		if(ratio <= 2) {
+			sex_genotype = "XY";
+			sex_genoclass = "HET";
+		}
+		else {
+			throwIf(true, "ratio="+ratio);
+		}
+
+		fs.writeSync( fd, "Ots_SEXY3-1,X="+adj_hits+",Y="+prb_hits+","+ratio+",,,,"+sex_genotype+","+sex_genoclass+",,,"+hits+","+hit_pct+"\n"); //+",,,"+prb_hits+","+hit_pct+"\n" );
+
+		fs.writeSync( fd, "\n" );
+
 
 		genes_a.forEach(function(g) {
 			var fg = fish.genes[g.name];
@@ -402,81 +464,25 @@ one_fish = function(inpath, finish) {
 				fg.a1a2_ratio,							// ratio A1:A2 corrected
 				fg.genotype,							// genotype
 				fg.genoclass,							// genotype class (HOM vs HET)
-				g.allele1_corr,								// A1 correction factor
-				g.allele2_corr,								// A2 correction factor
-				fg.on_target_reads,							// # of reads for gene
-				fg.ot_pct,								// % on target for gene only
-				fg.all_ot_pct,							// % on target for gene in total on target reads (total on-target for fish)
+				g.a1_corr,								// A1 correction factor
+				g.a2_corr,								// A2 correction factor
+				fg.hits,							// # of reads for gene
+				fg.hit_pct,								// % on target for gene only
+				fg.hit_pct_fish,							// % on target for gene in total on target reads (total on-target for fish)
 				"-",
 				"-",
 			].join(",") + "\n");
 		});
 
 
-		// do the sexy business
-		var fp = 0;
-		var ot = 0;
-		var rx = new RegExp( "CCTACCAAGTACA" );
-		sequences.forEach(function(sc) {
-			var seq = sc.sequence;
-			var count = sc.count;
-
-			if(seq.indexOf("CACAACATGAGCTCATGGG") == 0) {
-				fp += count;
-				if( rx.test(seq) ) {
-					ot += count;
-				}
-			}
-		});
-
-		var ot_pct = mk_pct(fp, ot);
-		var all_ot_pct = mk_pct(fish.on_target_reads, ot);
-
-		var cntrl_counts = toInt(fish.on_target_reads * 0.004);		// xxx ??
-
-		var ratio = Math.round((cntrl_counts / ot) * 1000) / 1000;
-
-		var sex_geno = "00";
-		var sex_geno_class = "NA";
-
-		if(cntrl_counts + ot < 10) {
-			sex_geno = "00";
-			sex_geno_class = "NA";
-		}
-		else
-		if(ratio >= 10) {
-			sex_geno = "XX";
-			sex_geno_class = "A1HOM";
-		}
-		else
-		if(ratio <= 0.1) {
-			sex_geno = "XY";
-			sex_geno_class = "A2HOM";
-		}
-		else
-		if(ratio <= 0.2) {
-			sex_geno = "00";
-			sex_geno_class = "NA";
-		}
-		else
-		if(ratio <= 5) {
-			sex_geno = "XY";
-			sex_geno_class = "HET";
-		}
-
-		fs.writeSync( fd, "Ots_SEXY3-1,X="+cntrl_counts+",Y="+ot+","+ratio+",0,0,0,"+sex_geno+","+sex_geno_class+",0,0,"+ot+","+ot_pct+","+all_ot_pct );
-
-
 		fs.close(fd);
 
 
-// -	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-	-
-// All done 
-
+		// All done; add this fish the growing school of processed fish.
 		fishies[fish.name] = fish;
+		fs.writeFile(data_out+"/"+fish.name+".json", util.inspect(fish), "utf8", finish);
 
-
-		finish();
+		//finish();
 	});
 }
 
@@ -503,8 +509,8 @@ var compile = function(finish) {
 			var a = [
 				fish.name,
 				fish.raw_reads,
-				fish.on_target_reads,
-				fish.ot_pct, 
+				fish.hits,
+				fish.hit_pct, 
 				mk_pct(genes_a.length, fish.num_typed),
 				fish.ifi,
 			];
@@ -514,7 +520,7 @@ var compile = function(finish) {
 
 				switch(flag) {
 				case "C":
-					a.push( fg.on_target_reads );
+					a.push( fg.hits );
 					break;
 				case "N":
 					var nt = "-";
