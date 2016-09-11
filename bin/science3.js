@@ -329,7 +329,7 @@ one_fish = function(inpath, finish) {
 		// Derive genotype info
 		// -----------------------------
 
-		// xxx ifi?
+		// XXX ifi?
 		/**/ fish.hom_ct = 0;
 		/**/ fish.bkgrd_ct = 0;
 		/**/ fish.ifi = 0;
@@ -346,7 +346,7 @@ one_fish = function(inpath, finish) {
 			// uncorrected a1:a2 ratio
 			fg.a1a2_ratio_uncorr = toInt(((fg.p1_hits || 0.1) / (fg.p2_hits || 0.1)) * 1000) / 1000;
 
-			// apply correction factors (xxx wtf is this anyway?)
+			// apply correction factors (XXX wtf is this anyway?)
 			fg.corr_p1_hits = fg.p1_hits - ((fg.hits / 4) * g.a1_corr);
 			fg.corr_p2_hits = fg.p2_hits - ((fg.hits / 4) * g.a2_corr);
 			if(fg.corr_p1_hits < 0) fg.corr_p1_hits = 0;
@@ -409,7 +409,7 @@ one_fish = function(inpath, finish) {
 			}
 			else {
 				// > 2 && < 5
-				// e.g., 4.155  // xxx ?
+				// e.g., 4.155  // XXX ?
 				fg.genotype = "??";
 				//throwIf(true, "fg.a1a2_ratio="+fg.a1a2_ratio);
 			}
@@ -475,7 +475,7 @@ one_fish = function(inpath, finish) {
 			fp_hits = 1;
 
 		var hit_pct = mk_pct(fp_hits, prb_hits);
-		var adj_hits = toInt(fish.hits * 0.004);		// xxx ??
+		var adj_hits = toInt(fish.hits * 0.004);		// XXX ??
 		if(adj_hits == 0)
 			adj_hits = 1;
 		if(prb_hits == 0)
@@ -511,7 +511,7 @@ one_fish = function(inpath, finish) {
 		}
 		else {
 			// > 2 && < 5
-			// e.g., 4.155  // xxx ?
+			// e.g., 4.155  // XXX ?
 			sex_genotype = "??";
 			//throwIf(true, "ratio="+ratio);
 		}
@@ -602,7 +602,7 @@ var compile = function(finish) {
 					break;
 				case "N":
 					var nt = "-";
-					if(enough_typed) {		// xxx
+					if(enough_typed) {		// XXX
 						nt = "00";
 						switch(fg.genoclass) {
 						case "A1HOM": nt = "11"; break;
