@@ -361,62 +361,56 @@ one_fish = function(inpath, finish) {
 			// a1:a2 ratio with correction
 			fg.a1a2_ratio = toInt(((fg.corr_p1_hits || 0.1) / (fg.corr_p2_hits || 0.1)) * 1000) / 1000;
 
-			//fg.genotype = "00";
-			fg.genoclass = "NA";
-
 			if((fg.corr_p1_hits + fg.corr_p2_hits) < 10) {
 				// low allele count	
 				fg.genotype = "-lac-";
-			}
-			else
-			if(fg.a1a2_ratio >= 10) {
-				// allele1 homozygotes
-				fg.genotype = g.allele1 + g.allele1;
-				fg.genoclass = "A1HOM";
-				fish.num_typed += 1;
-				fish.num_typed_hom += 1;
-				fish.num_typed_hom_a1 += 1;
-				/**/ fish.hom_ct += fg.corr_p1_hits;
-				/**/ fish.bkgrd_ct += fg.corr_p2_hits;
-			}
-			else
-			if(fg.a1a2_ratio < 10 && fg.a1a2_ratio > 5) {
-				// in-betweeners
-				/**/ fish.hom_ct += fg.corr_p1_hits;
-				/**/ fish.bkgrd_ct += fg.corr_p2_hits;
-				fg.genotype = "-ib1-";
-			}
-			else
-			if(fg.a1a2_ratio <= 0.1) {
-				// allele2 homozygotes
-				fg.genotype = g.allele2 + g.allele2;
-				fg.genoclass = "A2HOM";
-				fish.num_typed += 1;
-				fish.num_typed_hom += 1;
-				fish.num_typed_hom_a2 += 1;
-				/**/ fish.hom_ct += fg.corr_p2_hits;
-				/**/ fish.bkgrd_ct += fg.corr_p1_hits;
-			}
-			else
-			if(fg.a1a2_ratio <= 0.5) {
-				// in-betweeners
-				fish.hom_ct += fg.corr_p2_hits;
-				/**/ fish.bkgrd_ct += fg.corr_p1_hits;
-				fg.genotype = "-ib2-";
-			}
-			else
-			if(fg.a1a2_ratio <= 2) {
-				// heterozygotes
-				fg.genotype = g.allele1 + g.allele2;
-				fg.genoclass = "HET";
-				fish.num_typed += 1;
-				fish.num_typed_het += 1;
+				fg.genoclass = "NA";
 			}
 			else {
-				// > 2 && < 5
-				// e.g., 4.155  // XXX ?
-				fg.genotype = "??";
-				//throwIf(true, "fg.a1a2_ratio="+fg.a1a2_ratio);
+				if(fg.a1a2_ratio >= 10) {
+					// allele1 homozygotes
+					fg.genotype = g.allele1 + g.allele1;
+					fg.genoclass = "A1HOM";
+					fish.num_typed += 1;
+					fish.num_typed_hom += 1;
+					fish.num_typed_hom_a1 += 1;
+					/**/ fish.hom_ct += fg.corr_p1_hits;
+					/**/ fish.bkgrd_ct += fg.corr_p2_hits;
+				}
+				else
+				if(fg.a1a2_ratio >= 5) {
+					// in-betweeners
+					fg.genotype = "-ib1-";
+					fg.genoclass = "NA";
+					/**/ fish.hom_ct += fg.corr_p1_hits;
+					/**/ fish.bkgrd_ct += fg.corr_p2_hits;
+				}
+				else
+				if(fg.a1a2_ratio >= 0.2) {
+					// heterozygotes
+					fg.genotype = g.allele1 + g.allele2;
+					fg.genoclass = "HET";
+					fish.num_typed += 1;
+					fish.num_typed_het += 1;
+				}
+				else
+				if(fg.a1a2_ratio >= 0.1) {
+					// in-betweeners
+					fg.genotype = "-ib2-";
+					fg.genoclass = "NA";
+					/**/ fish.hom_ct += fg.corr_p2_hits;
+					/**/ fish.bkgrd_ct += fg.corr_p1_hits;
+				}
+				else {
+					// allele2 homozygotes
+					fg.genotype = g.allele2 + g.allele2;
+					fg.genoclass = "A2HOM";
+					fish.num_typed += 1;
+					fish.num_typed_hom += 1;
+					fish.num_typed_hom_a2 += 1;
+					/**/ fish.hom_ct += fg.corr_p2_hits;
+					/**/ fish.bkgrd_ct += fg.corr_p1_hits;
+				}
 			}
 
 		});
@@ -486,39 +480,35 @@ one_fish = function(inpath, finish) {
 		if(prb_hits == 0)
 			prb_hits = 1;
 		var ratio = Math.round((adj_hits / prb_hits) * 1000) / 1000;
-		var sex_genotype = "00";
-		var sex_genoclass = "NA";
+		var sex_genotype, sex_genoclass;
 		if(adj_hits + prb_hits < 10) {
 			sex_genotype = "-lac-";
-		}
-		else
-		if(ratio >= 10) {
-			sex_genotype = "XX";
-			sex_genoclass = "A1HOM";
-		}
-		else
-		if(ratio < 10 && ratio > 5) {
-			sex_genotype = "-ib1-";
-		}
-		else
-		if(ratio <= 0.1) {
-			sex_genotype = "XY";
-			sex_genoclass = "A2HOM";
-		}
-		else
-		if(ratio <= 0.5) {
-			sex_genotype = "-ib2-";
-		}
-		else
-		if(ratio <= 2) {
-			sex_genotype = "XY";
-			sex_genoclass = "HET";
+			sex_genoclass = "NA";
 		}
 		else {
-			// > 2 && < 5
-			// e.g., 4.155  // XXX ?
-			sex_genotype = "??";
-			//throwIf(true, "ratio="+ratio);
+			if(ratio >= 10) {
+				sex_genotype = "XX";
+				sex_genoclass = "A1HOM";
+			}
+			else
+			if(ratio >= 5) {
+				sex_genotype = "-ib1-";
+				sex_genoclass = "NA";
+			}
+			else
+			if(ratio >= 0.2) {
+				sex_genotype = "XY";
+				sex_genoclass = "HET";
+			}
+			else
+			if(ratio >= 0.1) {
+				sex_genotype = "-ib2-";
+				sex_genoclass = "NA";
+			}
+			else {
+				sex_genotype = "XY";
+				sex_genoclass = "A2HOM";
+			}
 		}
 
 		fs.writeSync( fd, "Ots_SEXY3-1,X="+adj_hits+",Y="+prb_hits+","+ratio+",,,,"+sex_genotype+","+sex_genoclass+",,,"+hits+","+hit_pct+"\n");
