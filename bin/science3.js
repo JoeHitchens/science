@@ -130,7 +130,7 @@ fs.readFileSync(locus_file, "utf8").trim().split("\n").forEach(function(line) {
 
 	var name = cols[0];
 	var g = hash[name];
-	throwIf(!g);							// sanity check: this gene name wasn't in the assay file
+	throwIf(!g, "not in assay: "+name);							// sanity check: this gene name wasn't in the assay file
 	throwIf(g.name != name);				// sanity check: gene name should match
 
 	//if( g.fwd_prm != cols[5].trim() ) {
@@ -282,6 +282,11 @@ one_fish = function(inpath, finish) {
 			var p2 = g.probe2;							// probe2 sequence for this gene
 			var p2rc = g.probe2rc;						// probe2's RC
 
+			var rx_p1 = new RegExp( g.probe1 );
+			var rx_p1rc = new RegExp( g.probe1rc );
+			var rx_p2 = new RegExp( g.probe2 );
+			var rx_p2rc = new RegExp( g.probe2rc );
+
 			// init counters
 			var fp_hits = 0;							// # of times fwd prm seen
 			var p1_hits = 0;							// # of times fwd prm AND probe1 seen together
@@ -290,15 +295,15 @@ one_fish = function(inpath, finish) {
 			sequences.forEach(function(sc) {
 				var seq = sc.sequence; 					// the nucleotide sequence
 				var count = sc.count;					// # time seq seen in fastq data
-				if(seq.substr(0, fwd_prm.length) == fwd_prm) {
+				if(seq.indexOf(fwd_prm) == 0) {
 					// sequence "starts" with fwd prm
 					fp_hits += count;
-					if( seq.indexOf(p1) != -1 || seq.indexOf(p1rc) != -1 ) {
+					if( rx_p1.test(seq) || rx_p1rc.test(seq) ) {
 						// sequence contains either probe1 or its RC
 						p1_hits += count;
 					}
 					else 
-					if( seq.indexOf(p2) != -1 || seq.indexOf(p2rc) != -1 ) {
+					if( rx_p2.test(seq) || rx_p2rc.test(seq) ) {
 						// sequence contains either probe2 or its RC
 						p2_hits += count;
 					}
@@ -548,7 +553,7 @@ one_fish = function(inpath, finish) {
 		fs.close(fd);		// finish off the genos file
 
 		// write out a JSON file containing the whole fish object
-		fs.writeFile(data_out+"/"+fish.name+"-fish.json", util.inspect(fish), "utf8");
+		//fs.writeFile(data_out+"/"+fish.name+"-fish.json", util.inspect(fish), "utf8");
 
 
 		// All done with this fish; add it to the growing school of processed fish.
