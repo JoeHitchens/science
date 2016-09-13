@@ -9,14 +9,14 @@
 // Pull in some external modules/librarires
 // -----------------------------
 
-// standard node.js modules
+// Standard node.js modules
 var util = require("util");
 var fs = require("fs");
 var path = require("path");
 var zlib = require("zlib");
 var exec = require("child_process").exec;
 
-// sleepless inc. modules
+// Sleepless Inc. modules
 require("sleepless");
 require("meet");
 
@@ -95,18 +95,18 @@ var data_out = process.argv[3] || "data_out";
 var assay_file = process.argv[4] || "assayinfo.txt";
 var locus_file = process.argv[5] || "locusinfo.txt";
 
-var fishies = {};		// hash/object that holds all the fish.  added as they're processed.  tagged by fish name (e.g., "51085-016_S16_L001_R1_001")
+var fishies = {};		// all fish are added to this object as they're processed,  tagged by fish name
 
-var gene_info = [];		// array of same objects, sorted by name
+var gene_info = [];		// array of gene/locus info objects - should maybe be called locus_info
 
 
 
 // -----------------------------
-// Load and preprocess the gene information from the assay and locus files
+// Load, preprocess, and merge the gene information from the assay and locus files
 // -----------------------------
 var hash = {};			// temporary hash of gene objects, tagged by name
 
-// load the assay and put info into hash
+// load data from assay file and put it into hash
 fs.readFileSync( assay_file, "utf8" ).trim().split( "\n" ).forEach(function(line) {
 	var cols = line.trim().split( /\s+/ );
 
@@ -133,24 +133,28 @@ fs.readFileSync(locus_file, "utf8").trim().split("\n").forEach(function(line) {
 	throwIf(!g, "not in assay: "+name);							// sanity check: this gene name wasn't in the assay file
 	throwIf(g.name != name);				// sanity check: gene name should match
 
-	//if( g.fwd_prm != cols[5].trim() ) {
-	//	log( name+"  Fwd Prm: assay="+g.fwd_prm+" locus="+cols[5].trim() );
-	//}
-	throwIf(g.fwd_prm != cols[5].trim());	// sanity check: fwd primer should match
-	//if(g.probe1 != cols[3].trim() ) {
-	//	log( name+" Probe 1: assay="+g.probe1+" locus="+cols[3].trim() );
-	//}
-	throwIf(g.probe1 != cols[3].trim());	// sanity check: probe 1 primer should match
-	//if(g.probe2 != cols[4].trim() ) {
-	//	log( name+" Probe 2: assay="+g.probe2+" locus="+cols[4].trim() );
-	//}
-	throwIf(g.probe2 != cols[4].trim());	// sanity check: probe 2 primer should match
+	if(true) {
+		throwIf(g.fwd_prm != cols[5].trim());	// sanity check: fwd primer should match
+		throwIf(g.probe1 != cols[3].trim());	// sanity check: probe 1 primer should match
+		throwIf(g.probe2 != cols[4].trim());	// sanity check: probe 2 primer should match
+	}
+	else {
+		if( g.fwd_prm != cols[5].trim() ) {
+			log( name+"  Fwd Prm: assay="+g.fwd_prm+" locus="+cols[5].trim() );
+		}
+		if(g.probe1 != cols[3].trim() ) {
+			log( name+" Probe 1: assay="+g.probe1+" locus="+cols[3].trim() );
+		}
+		if(g.probe2 != cols[4].trim() ) {
+			log( name+" Probe 2: assay="+g.probe2+" locus="+cols[4].trim() );
+		}
+	}
 
 	g.allele1 = cols[1].trim();				// single nucleotide letter, like "A" or "G"
-	g.allele2 = cols[2].trim();
+	g.allele2 = cols[2].trim();				// same for allele2
 
-	g.a1_corr = toFlt(cols[6]);				// correction factor
-	g.a2_corr = toFlt(cols[7]);				// correction factor
+	g.a1_corr = toFlt(cols[6]);				// allele1 correction factor
+	g.a2_corr = toFlt(cols[7]);				// same for allele2
 
 });
 
