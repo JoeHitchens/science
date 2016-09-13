@@ -457,7 +457,7 @@ one_fish = function(inpath, finish) {
 		// determine sex and write out line for it
 		var fp_hits = 0;
 		var prb_hits = 0;
-		var hits = 0;
+		fish.sex_hits = 0;
 		sequences.forEach(function(sc) {
 			var seq = sc.sequence;
 			var count = sc.count;
@@ -465,7 +465,7 @@ one_fish = function(inpath, finish) {
 				fp_hits += count;
 				if( seq.indexOf("CCTACCAAGTACA") != -1) {
 					prb_hits += count;
-					hits += count;
+					fish.sex_hits += count;
 				}
 			}
 		});
@@ -480,38 +480,38 @@ one_fish = function(inpath, finish) {
 		if(prb_hits == 0)
 			prb_hits = 1;
 		var ratio = Math.round((adj_hits / prb_hits) * 1000) / 1000;
-		var sex_genotype, sex_genoclass;
+		//var sex_genotype, sex_genoclass;
 		if(adj_hits + prb_hits < 10) {
-			sex_genotype = "-lac-";
-			sex_genoclass = "NA";
+			fish.sex_genotype = "-lac-";
+			fish.sex_genoclass = "NA";
 		}
 		else {
 			if(ratio >= 10) {
-				sex_genotype = "XX";
-				sex_genoclass = "A1HOM";
+				fish.sex_genotype = "XX";
+				fish.sex_genoclass = "A1HOM";
 			}
 			else
 			if(ratio >= 5) {
-				sex_genotype = "-ib1-";
-				sex_genoclass = "NA";
+				fish.sex_genotype = "-ib1-";
+				fish.sex_genoclass = "NA";
 			}
 			else
 			if(ratio >= 0.2) {
-				sex_genotype = "XY";
-				sex_genoclass = "HET";
+				fish.sex_genotype = "XY";
+				fish.sex_genoclass = "HET";
 			}
 			else
 			if(ratio >= 0.1) {
-				sex_genotype = "-ib2-";
-				sex_genoclass = "NA";
+				fish.sex_genotype = "-ib2-";
+				fish.sex_genoclass = "NA";
 			}
 			else {
-				sex_genotype = "XY";
-				sex_genoclass = "A2HOM";
+				fish.sex_genotype = "XY";
+				fish.sex_genoclass = "A2HOM";
 			}
 		}
 
-		fs.writeSync( fd, "Ots_SEXY3-1,X="+adj_hits+",Y="+prb_hits+","+ratio+",,,,"+sex_genotype+","+sex_genoclass+",,,"+hits+","+hit_pct+"\n");
+		fs.writeSync( fd, "Ots_SEXY3-1,X="+adj_hits+",Y="+prb_hits+","+ratio+",,,,"+fish.sex_genotype+","+fish.sex_genoclass+",,,"+fish.sex_hits+","+hit_pct+"\n");
 		fs.writeSync( fd, "\n" );
 
 
@@ -560,7 +560,7 @@ one_fish = function(inpath, finish) {
 var compile = function(finish) {
 	log("COMPILE: ");
 
-	var headings = "Sample,Raw Reads,On-Target Reads,%On-Target,%GT,IFI,";
+	var headings = "Sample,Raw Reads,On-Target Reads,%On-Target,%GT,IFI,,Ots_SEXY3-1,";
 	gene_info.forEach(function(g) {
 		headings += ","+g.name;
 	});
@@ -586,6 +586,32 @@ var compile = function(finish) {
 				fish.ifi,
 				"",
 			];
+
+
+			// XXX this special case is annoying.
+			switch(flag) {
+			case "C":
+				a.push( fish.sex_hits );
+				break;
+			case "N":
+				var nt = "-";
+				if(enough_typed) {		// XXX
+					nt = "00";
+					switch(fish.sex_genoclass) {
+					case "A1HOM": nt = "11"; break;
+					case "A2HOM": nt = "22"; break;
+					case "HET":   nt = "12"; break;
+					}
+				}
+				a.push(nt);
+				break;
+			case "S":
+			default:
+				a.push( fish.sex_genotype );
+				break;
+			}
+
+			a.push("");
 
 			// iterate through the genes and output a column for each
 			gene_info.forEach(function(g) {
