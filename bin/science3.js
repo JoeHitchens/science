@@ -94,6 +94,8 @@ var data_in = process.argv[2] || "data_in";
 var data_out = process.argv[3] || "data_out";
 var assay_file = data_in + "/assay_info.csv";
 var locus_file = data_in + "/locus_info.csv";
+log("Input directory: \""+data_in+"\"");
+log("Output directory: \""+data_out+"\"");
 
 var fishies = {};		// all fish are added to this object as they're processed,  tagged by fish name
 

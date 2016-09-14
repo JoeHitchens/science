@@ -3,9 +3,17 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $DIR
 
-rm data_out/*
+data_in="$1"
+data_out="$2"
 
-/usr/local/bin/node ./bin/science3.js data_in data_out
+if [ "$data_out" != "" ] ; then
+	rm "$data_out/"*
+fi
 
+echo Start: `date`
+
+/usr/local/bin/node ./bin/science3.js "$data_in"  "$data_out"
+
+echo Finish: `date`
 
 
