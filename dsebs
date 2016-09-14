@@ -5,7 +5,7 @@ cd $DIR
 
 rm data_out/*
 
-/usr/local/bin/node ./bin/science3.js data_in data_out ./AssayInfo.txt ./LocusInfo_v2.csv
+/usr/local/bin/node ./bin/science3.js data_in data_out
 
 
 

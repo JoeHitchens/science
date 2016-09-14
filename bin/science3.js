@@ -92,8 +92,8 @@ var gunzip = function(inpath, outpath, cb) {
 
 var data_in = process.argv[2] || "data_in";
 var data_out = process.argv[3] || "data_out";
-var assay_file = process.argv[4] || "assayinfo.txt";
-var locus_file = process.argv[5] || "locusinfo.txt";
+var assay_file = data_in + "/assay_info.csv";
+var locus_file = data_in + "/locus_info.csv";
 
 var fishies = {};		// all fish are added to this object as they're processed,  tagged by fish name
 
