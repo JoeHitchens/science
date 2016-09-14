@@ -1,0 +1,18 @@
+#!/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+locus_file=$1
+if [ "$1" =  "" ] ; then
+	b=`basename $0`
+	echo "Usage: $b LOCUS_INFO_FILE.csv"
+else
+	#for i in *.assembled.fastq ; do
+	for i in *R1*.fastq ; do
+		echo "$i ..."
+		#GTseq_Genotyper.pl LocusInfo.csv "$i" > "$i.genos"
+		#GTseq_Genotyper_v2_IFI.pl "$locus_file" "$i" > "$i.genos"
+		GTseq_Genotyper_v3.pl "$locus_file" "$i" > "$i.genos"
+		#node "$DIR/genotyper.js" "$locus_file" "$i" > "$i.genos"
+	done
+fi
+
