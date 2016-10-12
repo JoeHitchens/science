@@ -110,6 +110,7 @@ else {
 	sex_fp = "GCGCATTTGTATGGTGAAAA";
 	sex_prb = "CTGGCATATGAACACAT";
 }
+log("sex info: "+sex_fp+" "+sex_prb);
 
 
 // -----------------------------
