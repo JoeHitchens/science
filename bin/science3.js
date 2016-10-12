@@ -29,7 +29,7 @@ require("meet");
 
 // Writes out an object semi-readable form for debugging purposes
 var dump = function(o) {
-	log(util.inspect(o));
+	log(util.inspect(o), 3);
 }
 
 
@@ -109,8 +109,9 @@ var gene_info = [];		// array of gene/locus info objects - should maybe be calle
 var hash = {};			// temporary hash of gene objects, tagged by name
 
 // load data from assay file and put it into hash
-fs.readFileSync( assay_file, "utf8" ).trim().split( "\n" ).forEach(function(line) {
-	var cols = line.trim().split( /\s+/ );
+fs.readFileSync( assay_file, "utf8" ).trim().replace(/\r/g, "\n").split( "\n" ).forEach(function(line) {
+	//var cols = line.trim().split( /\s+/ );
+	var cols = line.trim().split( /,/ );
 
 	var name = cols[0].trim();
 	var g = {
@@ -127,13 +128,13 @@ fs.readFileSync( assay_file, "utf8" ).trim().split( "\n" ).forEach(function(line
 });
 
 // load the locus file and merge info into hash
-fs.readFileSync(locus_file, "utf8").trim().split("\n").forEach(function(line) {
+fs.readFileSync(locus_file, "utf8").trim().replace(/\r/, "\n").split("\n").forEach(function(line) {
 	var cols = line.trim().split(",");
 
 	var name = cols[0];
 	var g = hash[name];
-	throwIf(!g, "not in assay: "+name);							// sanity check: this gene name wasn't in the assay file
-	throwIf(g.name != name);				// sanity check: gene name should match
+	throwIf(!g, "sanity check: this gene wasn't in assay file: "+name);	
+	//throwIf(g.name != name);				// sanity check: gene name should match
 
 	if(true) {
 		throwIf(g.fwd_prm != cols[5].trim());	// sanity check: fwd primer should match
@@ -177,7 +178,7 @@ gene_info.sort(function(a, b) {
 // -----------------------------
 cmd = "find \""+data_in+"\" | grep .fastq.gz";
 exec(cmd, function(err, stdout, stderr) {
-	throwIf(err);
+	throwIf(err, o2j(err));
 
 	files = stdout.trim().split("\n");		// split the output of the find command into an array of lines, on per filename
 	log("Input directory \""+data_in+"\" contains "+files.length+" .fastq.gz files");
