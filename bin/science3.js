@@ -113,8 +113,9 @@ fs
 	.readFileSync( assay_file, "utf8" )	// read in the contents of the file as utf8 encoded text
 	.trim()								// strip off any leading or trailing whitespace characters
 	.replace(/\r/g, "\n")				// replace all carriage returns (if present) with newlines
+	.replace(/\n+/g, "\n")				// replace all carriage returns (if present) with newlines
 	.split( "\n" )						// cut the text up into lines on newline boundaries
-	.forEach(function(line) {			// and finally, start iterating through each of the lines
+	.forEach(function(line, ii) {			// and finally, start iterating through each of the lines
 
 	var cols = line.trim().split( /,/ );	// remove leading/trailing whitespace from line, and break it up on commas
 
@@ -142,6 +143,7 @@ fs
 	.readFileSync(locus_file, "utf8")		// read in the contents of the file as utf8 encoded text
 	.trim()									// strip off any leading or trailing whitespace characters
 	.replace(/\r/g, "\n")					// replace all carriage returns (if present) with newlines
+	.replace(/\n+/g, "\n")					// replace all carriage returns (if present) with newlines
 	.split("\n")							// cut the text up into lines on newline boundaries
 	.forEach(function(line) {				// and finally, start iterating through each of the lines
 
