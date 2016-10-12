@@ -102,7 +102,7 @@ var fishies = {};		// all fish are added to this object as they're processed,  t
 var gene_info = [];		// array of gene/locus info objects - should maybe be called locus_info
 
 
-if(argv[4] == "chinook") {
+if(process.argv[4] == "chinook") {
 	sex_fp = "CACAACATGAGCTCATGGG";
 	sex_prb = "CCTACCAAGTACA";
 }
