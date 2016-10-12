@@ -102,6 +102,15 @@ var fishies = {};		// all fish are added to this object as they're processed,  t
 var gene_info = [];		// array of gene/locus info objects - should maybe be called locus_info
 
 
+if(argv[4] == "chinook") {
+	sex_fp = "CACAACATGAGCTCATGGG";
+	sex_prb = "CCTACCAAGTACA";
+}
+else {
+	sex_fp = "GCGCATTTGTATGGTGAAAA";
+	sex_prb = "CTGGCATATGAACACAT";
+}
+
 
 // -----------------------------
 // Load, preprocess, and merge the gene information from the assay and locus files
@@ -494,14 +503,15 @@ one_fish = function(inpath, finish) {
 		sequences.forEach(function(sc) {
 			var seq = sc.sequence;
 			var count = sc.count;
-			if(seq.indexOf("CACAACATGAGCTCATGGG") == 0) {
+			if(seq.indexOf(sex_fp) == 0) {
 				fp_hits += count;
-				if( seq.indexOf("CCTACCAAGTACA") != -1) {
+				if( seq.indexOf(sex_prb) != -1) {
 					prb_hits += count;
 					fish.sex_hits += count;
 				}
 			}
 		});
+
 
 		if(fp_hits == 0)
 			fp_hits = 1;
