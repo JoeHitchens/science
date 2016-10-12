@@ -109,39 +109,59 @@ var gene_info = [];		// array of gene/locus info objects - should maybe be calle
 var hash = {};			// temporary hash of gene objects, tagged by name
 
 // load data from assay file and put it into hash
-fs.readFileSync( assay_file, "utf8" ).trim().replace(/\r/g, "\n").split( "\n" ).forEach(function(line) {
-	//var cols = line.trim().split( /\s+/ );
-	var cols = line.trim().split( /,/ );
+fs
+	.readFileSync( assay_file, "utf8" )	// read in the contents of the file as utf8 encoded text
+	.trim()								// strip off any leading or trailing whitespace characters
+	.replace(/\r/g, "\n")				// replace all carriage returns (if present) with newlines
+	.split( "\n" )						// cut the text up into lines on newline boundaries
+	.forEach(function(line) {			// and finally, start iterating through each of the lines
 
-	var name = cols[0].trim();
+	var cols = line.trim().split( /,/ );	// remove leading/trailing whitespace from line, and break it up on commas
+
+	var name = cols[0].trim();			// the first column is the name/label of the gene
+
+	// make an object 'g' that contains the gene name, fwd primer, and the 2 proboes
 	var g = {
 		name: name,
 		fwd_prm: cols[1].trim(),
 		probe1: cols[2].trim(),
 		probe2: cols[3].trim(),
 	};
+
+	// add in the rever complements of the probes as well
 	g.probe1rc = rev_comp(g.probe1);
 	g.probe2rc = rev_comp(g.probe2);
 
-	hash[name] = g;
-	gene_info.push(g);
+	hash[name] = g;			// place that object in the hash, keyed by the gene name.
+
+	gene_info.push(g);		// add the gene object to the gene_info array
 });
 
 // load the locus file and merge info into hash
-fs.readFileSync(locus_file, "utf8").trim().replace(/\r/g, "\n").split("\n").forEach(function(line) {
-	var cols = line.trim().split(",");
+fs
+	.readFileSync(locus_file, "utf8")		// read in the contents of the file as utf8 encoded text
+	.trim()									// strip off any leading or trailing whitespace characters
+	.replace(/\r/g, "\n")					// replace all carriage returns (if present) with newlines
+	.split("\n")							// cut the text up into lines on newline boundaries
+	.forEach(function(line) {				// and finally, start iterating through each of the lines
 
-	var name = cols[0];
+	var cols = line.trim().split(",");		// remove leading/trailing whitespace from line, and break it up on commas
+
+	var name = cols[0];						// the first column is the name/label of the gene
+
+	// verify that this gene was also present in the assay file.
 	var g = hash[name];
 	throwIf(!g, "sanity check: this gene wasn't in assay file: "+name);	
-	//throwIf(g.name != name);				// sanity check: gene name should match
 
+	// verify that the fwd primer and the 2 probes are the same as those from the assay file
 	if(true) {
+		// this version errors if they don't match
 		throwIf(g.fwd_prm != cols[5].trim());	// sanity check: fwd primer should match
 		throwIf(g.probe1 != cols[3].trim());	// sanity check: probe 1 primer should match
 		throwIf(g.probe2 != cols[4].trim());	// sanity check: probe 2 primer should match
 	}
 	else {
+		// this version prints the two out so you can look them up, but doesn't generate error
 		if( g.fwd_prm != cols[5].trim() ) {
 			log( name+"  Fwd Prm: assay="+g.fwd_prm+" locus="+cols[5].trim() );
 		}
@@ -152,8 +172,8 @@ fs.readFileSync(locus_file, "utf8").trim().replace(/\r/g, "\n").split("\n").forE
 			log( name+" Probe 2: assay="+g.probe2+" locus="+cols[4].trim() );
 		}
 	}
-	//dump(cols);
 
+	// add the additional file from locus file to the gene object (alleles, and correction factors)
 	g.allele1 = cols[1].trim();				// single nucleotide letter, like "A" or "G"
 	g.allele2 = cols[2].trim();				// same for allele2
 
@@ -161,10 +181,9 @@ fs.readFileSync(locus_file, "utf8").trim().replace(/\r/g, "\n").split("\n").forE
 	g.a2_corr = toFlt(cols[7]);				// same for allele2
 
 });
-//	process.exit();
 
 
-// Sort gene_info by gene name, case insignificant
+// Sort gene_info array by gene name, case insignificant
 gene_info.sort(function(a, b) {
 	if(a.name.toLowerCase() > b.name.toLowerCase()) return 1;
 	if(a.name.toLowerCase() < b.name.toLowerCase()) return -1;
