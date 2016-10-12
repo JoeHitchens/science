@@ -128,7 +128,7 @@ fs.readFileSync( assay_file, "utf8" ).trim().replace(/\r/g, "\n").split( "\n" ).
 });
 
 // load the locus file and merge info into hash
-fs.readFileSync(locus_file, "utf8").trim().replace(/\r/, "\n").split("\n").forEach(function(line) {
+fs.readFileSync(locus_file, "utf8").trim().replace(/\r/g, "\n").split("\n").forEach(function(line) {
 	var cols = line.trim().split(",");
 
 	var name = cols[0];
@@ -152,6 +152,7 @@ fs.readFileSync(locus_file, "utf8").trim().replace(/\r/, "\n").split("\n").forEa
 			log( name+" Probe 2: assay="+g.probe2+" locus="+cols[4].trim() );
 		}
 	}
+	//dump(cols);
 
 	g.allele1 = cols[1].trim();				// single nucleotide letter, like "A" or "G"
 	g.allele2 = cols[2].trim();				// same for allele2
@@ -160,6 +161,8 @@ fs.readFileSync(locus_file, "utf8").trim().replace(/\r/, "\n").split("\n").forEa
 	g.a2_corr = toFlt(cols[7]);				// same for allele2
 
 });
+//	process.exit();
+
 
 // Sort gene_info by gene name, case insignificant
 gene_info.sort(function(a, b) {
@@ -526,20 +529,20 @@ one_fish = function(inpath, finish) {
 		gene_info.forEach(function(g) {
 			var fg = fish.genes[g.name];
 			fs.writeSync( fd, [
-				g.name,									// fish file name
+				g.name,								// fish file name
 				g.allele1 + "="+ fg.p1_hits,		// # of reads for allele 1
-				g.allele2 + "="+fg.p2_hits,		// # of reads for allele 2
-				fg.a1a2_ratio_uncorr,					// ratio A1:A2 
+				g.allele2 + "="+fg.p2_hits,			// # of reads for allele 2
+				fg.a1a2_ratio_uncorr,				// ratio A1:A2 
 				g.allele1 + "="+ fg.corr_p1_hits,	// # of reads for allele 1 corrected
 				g.allele2 + "="+fg.corr_p2_hits,	// # of reads for allele 2 corrected
-				fg.a1a2_ratio,							// ratio A1:A2 corrected
-				fg.genotype,							// genotype
-				fg.genoclass,							// genotype class (HOM vs HET)
-				g.a1_corr,								// A1 correction factor
-				g.a2_corr,								// A2 correction factor
+				fg.a1a2_ratio,						// ratio A1:A2 corrected
+				fg.genotype,						// genotype
+				fg.genoclass,						// genotype class (HOM vs HET)
+				g.a1_corr,							// A1 correction factor
+				g.a2_corr,							// A2 correction factor
 				fg.hits,							// # of reads for gene
-				fg.hit_pct,								// % on target for gene only
-				fg.hit_pct_fish,							// % on target for gene in total on target reads (total on-target for fish)
+				fg.hit_pct,							// % on target for gene only
+				fg.hit_pct_fish,					// % on target for gene in total on target reads (total on-target for fish)
 				"-",
 				"-",
 			].join(",") + "\n");
