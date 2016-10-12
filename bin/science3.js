@@ -197,6 +197,7 @@ gene_info.sort(function(a, b) {
 // Start processing the fast.q data.
 // Scan "data_in" for all files, in any sub-directories that end with .fasq.gz
 // XXX This exec() won't work on windows; walk the tree manually
+// XXX Also look for any uncompressed .fastq files and consume them too?
 // -----------------------------
 cmd = "find \""+data_in+"\" | grep .fastq.gz";
 exec(cmd, function(err, stdout, stderr) {
@@ -222,6 +223,7 @@ exec(cmd, function(err, stdout, stderr) {
 // -----------------------------
 // Process a single fish from the fastq file at "inpath".
 // Call finish() when done.
+// XXX consider fork()ing in order to leverage all CPUs.
 // -----------------------------
 one_fish = function(inpath, finish) {
 
