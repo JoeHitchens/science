@@ -102,15 +102,16 @@ var fishies = {};		// all fish are added to this object as they're processed,  t
 var gene_info = [];		// array of gene/locus info objects - should maybe be called locus_info
 
 
+// sex locus fwd primers and probes
 if(process.argv[4] == "chinook") {
 	sex_fp = "CACAACATGAGCTCATGGG";
 	sex_prb = "CCTACCAAGTACA";
 }
-else {
-	sex_fp = "GCGCATTTGTATGGTGAAAA";
+else {			// steelhead
+	sex_fp = "ATGTGTTCATATGCCAG";
 	sex_prb = "CTGGCATATGAACACAT";
 }
-log("sex info: "+sex_fp+" "+sex_prb);
+log("using sex locus sequences: "+sex_fp+" "+sex_prb);
 
 
 // -----------------------------
