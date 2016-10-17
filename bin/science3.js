@@ -607,7 +607,8 @@ var compile = function(finish) {
 
 	var headings = "Sample,Raw Reads,On-Target Reads,%On-Target,%GT,IFI,,Ots_SEXY3-1,";
 	gene_info.forEach(function(g) {
-		headings += ","+g.name;
+		headings += ","+g.name+"_1";
+		headings += ","+g.name+"_2";
 	});
 	headings += "\n";
 
@@ -676,11 +677,19 @@ var compile = function(finish) {
 						case "HET":   nt = "12"; break;
 						}
 					}
-					a.push(nt);
+					a.push(nt[0]);
+					a.push(nt[1]);
 					break;
 				case "S":
 				default:
-					a.push( fg.genotype );
+					if(fg.genotype[0] == '-') {
+						a.push( fg.genotype );
+						a.push( fg.genotype );
+					}
+					else {
+						a.push( fg.genotype[0] );
+						a.push( fg.genotype[1] );
+					}
 					break;
 				}
 			});
