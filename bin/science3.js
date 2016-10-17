@@ -104,14 +104,16 @@ var gene_info = [];		// array of gene/locus info objects - should maybe be calle
 
 // sex locus fwd primers and probes
 if(process.argv[4] == "chinook") {
+	// chinook
 	sex_fp = "CACAACATGAGCTCATGGG";
 	sex_prb = "CCTACCAAGTACA";
 }
-else {			// steelhead
-	sex_fp = "ATGTGTTCATATGCCAG";
-	sex_prb = "CTGGCATATGAACACAT";
+else {		
+	// not-chinook (i.e., steelhead)
+	sex_fp = "GCGCATTTGTATGGTGAAAA";
+	sex_prb = "ATGTGTTCATATGCCAG";
 }
-log("using sex locus sequences: "+sex_fp+" "+sex_prb);
+log("using sex locus sequences: FP="+sex_fp+" PRB="+sex_prb);
 
 
 // -----------------------------
