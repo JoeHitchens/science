@@ -607,14 +607,21 @@ one_fish = function(inpath, finish) {
 var compile = function(finish) {
 	log("COMPILE: ");
 
-	var headings = "Sample,Raw Reads,On-Target Reads,%On-Target,%GT,IFI,,Ots_SEXY3-1,";
-	gene_info.forEach(function(g) {
-		headings += ","+g.name+"_1";
-		headings += ","+g.name+"_2";
-	});
-	headings += "\n";
-
 	var compile = function(flag, thresh, output_filename) {
+
+		var headings = "Sample,Raw Reads,On-Target Reads,%On-Target,%GT,IFI,,Ots_SEXY3-1,";
+		gene_info.forEach(function(g) {
+			switch(flag) {
+			case "C":
+				headings += ","+g.name;
+				break;
+			default:
+				headings += ","+g.name+"_1";
+				headings += ","+g.name+"_2";
+				break;
+			}
+		});
+		headings += "\n";
 
 		var fd = fs.openSync( output_filename, "w" );		// open the output file for writing
 		fs.writeSync(fd, headings);							// write the header line
