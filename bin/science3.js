@@ -558,7 +558,7 @@ one_fish = function(inpath, finish) {
 			}
 		}
 
-		fs.writeSync( fd, "Ots_SEXY3-1,X="+adj_hits+",Y="+prb_hits+","+ratio+",,,,"+fish.sex_genotype+","+fish.sex_genoclass+",,,"+fish.sex_hits+","+hit_pct+"\n");
+		fs.writeSync( fd, "Ots_SEXY3-1,X="+adj_hits+",Y="+prb_hits+","+ratio+",,,,\""+fish.sex_genotype+"\","+fish.sex_genoclass+",,,"+fish.sex_hits+","+hit_pct+"\n");
 		fs.writeSync( fd, "\n" );
 
 
@@ -573,7 +573,7 @@ one_fish = function(inpath, finish) {
 				g.allele1 + "="+ fg.corr_p1_hits,	// # of reads for allele 1 corrected
 				g.allele2 + "="+fg.corr_p2_hits,	// # of reads for allele 2 corrected
 				fg.a1a2_ratio,						// ratio A1:A2 corrected
-				fg.genotype,						// genotype
+				'"'+fg.genotype+'"',						// genotype
 				fg.genoclass,						// genotype class (HOM vs HET)
 				g.a1_corr,							// A1 correction factor
 				g.a2_corr,							// A2 correction factor
@@ -662,7 +662,7 @@ var compile = function(finish) {
 				break;
 			case "S":
 			default:
-				a.push( fish.sex_genotype );
+				a.push( '"'+fish.sex_genotype+'"' );
 				break;
 			}
 
@@ -692,12 +692,12 @@ var compile = function(finish) {
 				case "S":
 				default:
 					if(fg.genotype[0] == '-') {
-						a.push( fg.genotype );
-						a.push( fg.genotype );
+						a.push( '"'+fg.genotype+'"' );
+						a.push( '"'+fg.genotype+'"' );
 					}
 					else {
-						a.push( fg.genotype[0] );
-						a.push( fg.genotype[1] );
+						a.push( '"'+fg.genotype[0]+'"' );
+						a.push( '"'+fg.genotype[1]+'"' );
 					}
 					break;
 				}
