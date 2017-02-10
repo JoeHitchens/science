@@ -26,7 +26,6 @@ require("meet");
 // Misc. supporting functions
 // -----------------------------
 
-
 // Writes out an object semi-readable form for debugging purposes
 var dump = function(o) {
 	log(util.inspect(o), 3);
@@ -67,22 +66,12 @@ var mk_pct = function(t, f) {
 }
 
 
-// Read the compressed file at "inpath" and write it back out to "outpath", call cb() when done
-// XXX This exec() won't work on windows; make the zlib version of this work
-var gunzip = function(inpath, outpath, cb) {
-
-	var cmd = "gunzip < \"" + inpath + "\" > \"" + outpath + "\"";
-	exec(cmd, function(err, stdout, stderr) {
-		throwIf(err);
-		fs.readFile(outpath, "utf8", function(err, text) {		// read in the uncompressed file as 'text'
-			throwIf(err);
-			fs.unlink(outpath, function(err) {					// delete uncompressed file from disk (it was temporary)
-				throwIf(err);
-				cb(text);										// pass 'text' to the callback function
-			})
-		});
+// Read the compressed file at "inpath" and pass the uncompressed contents to cb()
+var gunzip = function(inpath, cb) {
+	var c = fs.readFileSync(inpath);
+	zlib.gunzip(c, function(e, d) {
+		cb(d.toString());
 	});
-
 }
 
 
@@ -208,31 +197,6 @@ gene_info.sort(function(a, b) {
 
 
 
-// -----------------------------
-// Start processing the fast.q data.
-// Scan "data_in" for all files, in any sub-directories that end with .fasq.gz
-// XXX This exec() won't work on windows; walk the tree manually
-// XXX Also look for any uncompressed .fastq files and consume them too?
-// -----------------------------
-cmd = "find \""+data_in+"\" | grep .fastq.gz";
-exec(cmd, function(err, stdout, stderr) {
-	throwIf(err, o2j(err));
-
-	files = stdout.trim().split("\n");		// split the output of the find command into an array of lines, on per filename
-	log("Input directory \""+data_in+"\" contains "+files.length+" .fastq.gz files");
-
-	var m = new Meet();
-
-	// queue each .fastq.gz for processing by one_fish()
-	files.forEach(function(file) {
-		m.queue(one_fish, file);
-	});
-
-	m.queue(compile);				// then compile the results of all fish
-
-	m.allDone(process.exit);		// exit program
-});
-
 
 
 // -----------------------------
@@ -252,7 +216,7 @@ one_fish = function(inpath, finish) {
 
 
 	// uncompress and load in the fastq data
-	gunzip(inpath, outpath, function(data) {
+	gunzip(inpath, function(data) {
 
 		// data is the uncompressed contents of the entire fastq file
 
@@ -716,5 +680,35 @@ var compile = function(finish) {
 	finish();
 
 }
+
+
+// -----------------------------
+// Start processing the fastq data.
+// Scan "data_in" for all files, in any sub-directories that end with .fasq.gz
+// XXX Also look for any uncompressed .fastq files and consume them too?
+// -----------------------------
+files = [];
+scan_dir = function(path) {
+	var a = fs.readdirSync(path);
+	a.forEach(function(f) {
+		var p = path+"/"+f
+		if(fs.statSync(p).isDirectory()) {
+			scan_dir(p);
+		}
+		else {
+			if(p.lcase().endsWith(".fastq.gz")) {
+				files.push(p);
+			}
+		}
+	});
+}
+scan_dir(data_in);
+var m = new Meet();
+// queue each .fastq.gz for processing by one_fish()
+files.forEach(function(file) {
+	m.queue(one_fish, file);
+});
+m.queue(compile);				// then compile the results of all fish
+m.allDone(process.exit);		// exit program
 
 
