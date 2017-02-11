@@ -14,7 +14,7 @@ var util = require("util");
 var fs = require("fs");
 var path = require("path");
 var zlib = require("zlib");
-var exec = require("child_process").exec;
+//var exec = require("child_process").exec;
 
 // Sleepless Inc. modules
 require("sleepless");
