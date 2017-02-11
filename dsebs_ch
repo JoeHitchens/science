@@ -12,7 +12,7 @@ fi
 
 echo Start: `date`
 
-/usr/local/bin/node ./bin/science3.js "$data_in"  "$data_out" chinook
+/usr/local/bin/node ./science3.js "$data_in"  "$data_out" chinook
 
 echo Finish: `date`
 
