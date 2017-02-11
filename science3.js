@@ -83,6 +83,7 @@ var data_in = process.argv[2] || "data_in";
 var data_out = process.argv[3] || "data_out";
 var assay_file = data_in + "/assay_info.csv";
 var locus_file = data_in + "/locus_info.csv";
+var sex_file = data_in + "/sex_info.csv";
 log("Input directory: \""+data_in+"\"");
 log("Output directory: \""+data_out+"\"");
 
@@ -91,6 +92,7 @@ var fishies = {};		// all fish are added to this object as they're processed,  t
 var gene_info = [];		// array of gene/locus info objects - should maybe be called locus_info
 
 
+/*
 // sex locus fwd primers and probes
 if(process.argv[4] == "chinook") {
 	// chinook
@@ -102,7 +104,21 @@ else {
 	sex_fp = "GCGCATTTGTATGGTGAAAA";
 	sex_prb = "ATGTGTTCATATGCCAG";
 }
-log("using sex locus sequences: FP="+sex_fp+" PRB="+sex_prb);
+*/
+
+var a = fs
+	.readFileSync( sex_file, "utf8" )	// read in the the sex info as utf8 encoded text
+	.trim()								// discard leading or trailing whitespace
+	.replace(/\r/g, "\n")				// replace carriage returns (if present) with newlines
+	.replace(/\n+/g, "\n")				// crunch down repeated newlines into just one
+	.split( "\n" )						// cut the text up into lines on newline boundaries
+var a = a[0].split(",");
+sex_fp = (a[0] || "").trim();
+throwIf(!sex_fp, "No forward primer in sex_info.csv");
+sex_prb = (a[1] || "").trim();
+throwIf(!sex_prb, "No probe in sex_info.csv");
+
+log("using sex locus sequences: FP="+sex_fp+" PRB="+sex_prb+(a[2] ? " "+a[2] : ""));
 
 
 // -----------------------------
@@ -115,7 +131,7 @@ fs
 	.readFileSync( assay_file, "utf8" )	// read in the contents of the file as utf8 encoded text
 	.trim()								// strip off any leading or trailing whitespace characters
 	.replace(/\r/g, "\n")				// replace all carriage returns (if present) with newlines
-	.replace(/\n+/g, "\n")				// replace all carriage returns (if present) with newlines
+	.replace(/\n+/g, "\n")				// crunch down repeated newlines into just one
 	.split( "\n" )						// cut the text up into lines on newline boundaries
 	.forEach(function(line, ii) {			// and finally, start iterating through each of the lines
 
