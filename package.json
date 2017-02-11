@@ -1,0 +1,26 @@
+{
+  "name": "science",
+  "version": "1.0.0",
+  "description": "Fishy Science Version 3 ========================",
+  "main": "scienced.js",
+  "bin": {
+    "science": "science3.js"
+  },
+  "dependencies": {
+    "sleepless": "^2.4.7"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoeHitchens/science.git"
+  },
+  "author": "Joe Hitchens",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JoeHitchens/science/issues"
+  },
+  "homepage": "https://github.com/JoeHitchens/science#readme"
+}
