@@ -7,6 +7,8 @@
     "science": "science3.js"
   },
   "dependencies": {
+    "g": "^2.0.1",
+    "log5": "^2.0.0",
     "sleepless": "^2.4.7"
   },
   "devDependencies": {},

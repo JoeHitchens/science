@@ -9,9 +9,11 @@ var fs = require("fs");
 var util = require("util");
 var fs = require("fs");
 var path = require("path");
+var exec = require("child_process").exec;
 
 // Sleepless Inc. modules
 require("sleepless");
+require("g")("log5");
 
 
 // -----------------------------
@@ -20,7 +22,7 @@ require("sleepless");
 
 // Writes out an object semi-readable form for debugging purposes
 var dump = function(o) {
-	log(util.inspect(o), 3);
+	I(util.inspect(o), 3);
 }
 
 // return true if the path is a directory
@@ -47,7 +49,7 @@ var start = function(name) {
 
 	working += 1;
 
-	log("starting job: "+name);
+	I("JOB \""+name+"\" starting");
 
 	fs.renameSync("start/"+name, "working/"+name);		// move to working dir
 
@@ -56,11 +58,11 @@ var start = function(name) {
 
 	// move to finished or failed dir
 	if(r == 0) {
-		log("finished: "+name);
+		I("JOB \""+name+"\" finished");
 		fs.renameSync("working/"+name, "finished/"+name)
 	}
 	else {
-		log("**** FAILED: "+name);
+		E("JOB \""+name+"\" **FAILED**");
 		fs.renameSync("working/"+name, "failed/"+name)
 	}
 
@@ -69,7 +71,7 @@ var start = function(name) {
 
 
 var tick = function() {
-	log("(working on "+working+" jobs)");
+	//log("(working on "+working+" jobs)");
 
 	if(working < 1) {		// XXX change to num cpus
 
@@ -89,8 +91,8 @@ var tick = function() {
 
 
 // start the daemon running
-log("FISHY SCIENCE DAEMON");
-log("Starting "+(new Date()));
+I("FISHY SCIENCE JOB DAEMON");
+I("Starting "+(new Date()));
 process.chdir("./jobs");
 setInterval(tick, 2 * 1000);
 
