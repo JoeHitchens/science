@@ -5,6 +5,7 @@
 
 
 // Standard node.js modules
+var os = require("os");
 var fs = require("fs");
 var util = require("util");
 var fs = require("fs");
@@ -35,6 +36,13 @@ var clobber_file = function(path) {
 	try { fs.unlinkSync(path); } catch(e) { }
 }
 
+var add_crs = function(s) {
+	if(os.platform == "win32") {
+		return s.replace("\n", "\r\n");
+	}
+	return s;
+}
+
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
@@ -62,6 +70,10 @@ var start = function(name) {
 	});
 
 	var ec = r.status;		// the exit code of the child process
+
+	// add CR chars to these if we're running on windows (ew)
+	r.stdout = add_crs(r.stdout);
+	r.stderr = add_crs(r.stderr);
 
 	// move to finished or failed dir
 	if(ec == 0) {
