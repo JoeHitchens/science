@@ -99,7 +99,7 @@ var start = function(name) {
 var tick = function() {
 	//log("(working on "+working+" jobs)");
 
-	if(working < 1) {		// XXX change to num cpus
+	if(working < 1) {		// XXX change to use num_cpus
 
 		var files = fs.readdirSync("start")
 		for(var i = 0; i < files.length; i++) {
@@ -118,10 +118,9 @@ var tick = function() {
 
 // start the daemon running
 I("FISHY SCIENCE JOB DAEMON");
-I("Platform "+os.type()+" ("+os.platform()+") "+os.arch()+" "+os.cpus().length+"-CPUS");
+var num_cpus = os.cpus().length;
+I("Platform "+os.type()+" ("+os.platform()+") "+os.arch()+" "+num_cpus+"-CPUS");
 I("Starting "+(new Date()));
-
-
 var script = process.argv[1].replace( /[^\/]+$/, "science3.js")
 var script = process.cwd() + "/science3.js";
 I("script="+script);
