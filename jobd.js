@@ -37,7 +37,7 @@ var clobber_file = function(path) {
 }
 
 var add_crs = function(s) {
-	if(os.platform == "win32") {
+	if(os.platform() == "win32") {
 		return s.replace(/\n/g, "\r\n");
 	}
 	return s;
