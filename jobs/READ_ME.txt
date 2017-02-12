@@ -5,11 +5,11 @@ Fishy Science Job Daemon Version 1
 
 There are 5 folders here - prep, start, working, finished, and fail
 
-Prepare your job by making a folder in "prep" and getting everything copied in and set up.
+Prepare your job by making a folder in "prep" and getting everything FULLY copied in and set up.
 The folder that you create is your "job".
 
 When you're ready to start the job, drag it into the "start" folder.  
-It should disappear within a few seconds and reappear in the "working" folder.
+It will be detected and moved to the "working" folder.
 
 As long as your job is in the working folder, it's being processed.
 

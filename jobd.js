@@ -97,9 +97,9 @@ var start = function(name) {
 
 
 var tick = function() {
-	//log("(working on "+working+" jobs)");
+	V("(working on "+working+" jobs)");
 
-	if(working < 1) {		// XXX change to use num_cpus
+	if(working < num_cpus) {
 
 		var files = fs.readdirSync("start")
 		for(var i = 0; i < files.length; i++) {
@@ -123,9 +123,9 @@ I("Platform "+os.type()+" ("+os.platform()+") "+os.arch()+" "+num_cpus+"-CPUS");
 I("Starting "+(new Date()));
 var script = process.argv[1].replace( /[^\/]+$/, "science3.js")
 var script = process.cwd() + "/science3.js";
-I("script="+script);
+V("script="+script);
 process.chdir("./jobs");
-setInterval(tick, 2 * 1000);
+setInterval(tick, 5 * 1000);
 
 
 
