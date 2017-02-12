@@ -118,6 +118,7 @@ var tick = function() {
 
 // start the daemon running
 I("FISHY SCIENCE JOB DAEMON");
+I("Platform "+os.type()+" ("+os.platform()+") "+os.arch()+" "+os.cpus().length+"-CPUS");
 I("Starting "+(new Date()));
 
 
