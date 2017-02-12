@@ -110,6 +110,7 @@ I("Starting "+(new Date()));
 
 
 var script = process.argv[1].replace( /[^\/]+$/, "science3.js")
+var script = process.cwd() + "/science3.js";
 I("script="+script);
 process.chdir("./jobs");
 setInterval(tick, 2 * 1000);
