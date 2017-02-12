@@ -31,6 +31,11 @@ var dump = function(o) {
 	log(util.inspect(o), 3);
 }
 
+// return true if the path is a directory
+var is_dir = function(path) {
+	try { return fs.statSync(path).isDirectory(); } catch(e) { }
+	return false;
+}
 
 // Returns a reversed version of a string: "foo" becomes "oof"
 String.prototype.reverse = function() {
@@ -81,30 +86,24 @@ var gunzip = function(inpath, cb) {
 
 var data_in = process.argv[2] || "data_in";
 var data_out = process.argv[3] || "data_out";
-var assay_file = data_in + "/assay_info.csv";
-var locus_file = data_in + "/locus_info.csv";
-var sex_file = data_in + "/sex_info.csv";
+var assay_file = "assay_info.csv";
+var locus_file = "locus_info.csv";
+var sex_file = "sex_info.csv";
+log("Working directory: \""+process.cwd()+"\"");
 log("Input directory: \""+data_in+"\"");
-log("Output directory: \""+data_out+"\"");
-
-var fishies = {};		// all fish are added to this object as they're processed,  tagged by fish name
-
-var gene_info = [];		// array of gene/locus info objects - should maybe be called locus_info
-
-
-/*
-// sex locus fwd primers and probes
-if(process.argv[4] == "chinook") {
-	// chinook
-	sex_fp = "CACAACATGAGCTCATGGG";
-	sex_prb = "CCTACCAAGTACA";
+if(is_dir(data_out)) {
+	log("Output directory: \""+data_out+"\"");
 }
-else {		
-	// not-chinook (i.e., steelhead)
-	sex_fp = "GCGCATTTGTATGGTGAAAA";
-	sex_prb = "ATGTGTTCATATGCCAG";
+else {
+	fs.mkdir(data_out);
+	log("Output directory created \""+data_out+"\"");
 }
-*/
+
+
+var fishies = {};	// all fish are added to this object as they're processed,  tagged by fish name
+
+var gene_info = [];	// array of gene/locus info objects - should maybe be called locus_info
+
 
 var a = fs
 	.readFileSync( sex_file, "utf8" )	// read in the the sex info as utf8 encoded text
@@ -725,6 +724,9 @@ files.forEach(function(file) {
 	m.queue(one_fish, file);
 });
 m.queue(compile);				// then compile the results of all fish
-m.allDone(process.exit);		// exit program
+m.allDone(function() {
+	log("Finished");
+	process.exit();		// exit program
+});
 
 
