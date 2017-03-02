@@ -1,7 +1,6 @@
 
-
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-// Fishy Science Version 3
+// Fishy Science Version 4
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
@@ -14,11 +13,15 @@ var util = require("util");
 var fs = require("fs");
 var path = require("path");
 var zlib = require("zlib");
-//var exec = require("child_process").exec;
+
+
+// 3rd partynode.js modules
+var xlsx = require("sleepless-xlsx");
 
 // Sleepless Inc. modules
 require("sleepless");
 require("meet");
+runq = require("runq");
 
 
 
@@ -79,6 +82,29 @@ var gunzip = function(inpath, cb) {
 	});
 }
 
+// Scan "path" for files, in any sub-dirs that match regular expression "pattern"
+var scan_dir = function(path, pattern) {
+	var found = [];
+	var a = fs.readdirSync(path);
+	a.forEach(function(f) {
+		var p = path+"/"+f
+		if(fs.statSync(p).isDirectory()) {
+			scan_dir(p);
+		}
+		else {
+			if(pattern) {
+				if(pattern.test(p.lcase())) {
+					found.push(p);
+				}
+			}
+			else {
+				found.push(p);
+			}
+		}
+	});
+	return found;
+}
+
 
 // -----------------------------
 // Here's where we start the real science work
@@ -89,6 +115,8 @@ var data_out = process.argv[3] || "data_out";
 var assay_file = "assay_info.csv";
 var locus_file = "locus_info.csv";
 var sex_file = "sex_info.csv";
+sex_fp = sex_prb = null;
+
 log("Working directory: \""+process.cwd()+"\"");
 log("Input directory: \""+data_in+"\"");
 if(is_dir(data_out)) {
@@ -105,25 +133,30 @@ var fishies = {};	// all fish are added to this object as they're processed,  ta
 var gene_info = [];	// array of gene/locus info objects - should maybe be called locus_info
 
 
-var a = fs
-	.readFileSync( sex_file, "utf8" )	// read in the the sex info as utf8 encoded text
-	.trim()								// discard leading or trailing whitespace
-	.replace(/\r/g, "\n")				// replace carriage returns (if present) with newlines
-	.replace(/\n+/g, "\n")				// crunch down repeated newlines into just one
-	.split( "\n" )						// cut the text up into lines on newline boundaries
-var a = a[0].split(",");
-sex_fp = (a[0] || "").trim();
-throwIf(!sex_fp, "No forward primer in sex_info.csv");
-sex_prb = (a[1] || "").trim();
-throwIf(!sex_prb, "No probe in sex_info.csv");
-
-log("using sex locus sequences: FP="+sex_fp+" PRB="+sex_prb+(a[2] ? " "+a[2] : ""));
+try {
+	var a = fs
+		.readFileSync( sex_file, "utf8" )	// read in the the sex info as utf8 encoded text
+		.trim()								// discard leading or trailing whitespace
+		.replace(/\r/g, "\n")				// replace carriage returns (if present) with newlines
+		.replace(/\n+/g, "\n")				// crunch down repeated newlines into just one
+		.split( "\n" )						// cut the text up into lines on newline boundaries
+	var a = a[0].split(",");
+	sex_fp = (a[0] || "").trim();
+	throwIf(!sex_fp, "No forward primer in sex_info.csv");
+	sex_prb = (a[1] || "").trim();
+	throwIf(!sex_prb, "No probe in sex_info.csv");
+	log("using sex locus sequences: FP="+sex_fp+" PRB="+sex_prb+(a[2] ? " "+a[2] : ""));
+} catch(e) {
+	log("No "+sex_file+" file; skipping that stuff.");
+}
 
 
 // -----------------------------
 // Load, preprocess, and merge the gene information from the assay and locus files
 // -----------------------------
+
 var hash = {};			// temporary hash of gene objects, tagged by name
+
 
 // load data from assay file and put it into hash
 fs
@@ -154,6 +187,7 @@ fs
 
 	gene_info.push(g);		// add the gene object to the gene_info array
 });
+
 
 // load the locus file and merge info into hash
 fs
@@ -211,9 +245,6 @@ gene_info.sort(function(a, b) {
 
 
 
-
-
-
 // -----------------------------
 // Process a single fish from the fastq file at "inpath".
 // Call finish() when done.
@@ -221,13 +252,13 @@ gene_info.sort(function(a, b) {
 // -----------------------------
 one_fish = function(inpath, finish) {
 
-	var fish = { };			// create object to hold relevant info collected about this fish
+	var fish = { };		// create object to hold relevant info collected about this fish
 
 
-	var file = path.basename(inpath);					// 51085-016_S16_L001_R1_001.fastq.gz
-	fish.name = file.replace( /\.fastq\.gz$/, "" );		// 51085-016_S16_L001_R1_001
+	var file = path.basename(inpath);				// 51085-016_S16_L001_R1_001.fastq.gz
+	fish.name = file.replace( /\.fastq\.gz$/, "" );	// 51085-016_S16_L001_R1_001
 
-	var outpath = data_out + "/" + fish.name;			// data_out/51085-016_S16_L001_R1_001
+	var outpath = data_out + "/" + fish.name;		// data_out/51085-016_S16_L001_R1_001
 
 
 	// uncompress and load in the fastq data
@@ -260,7 +291,7 @@ one_fish = function(inpath, finish) {
 		fish.raw_reads = a.length;					// note the # of raw reads found in the fastq file (sex line line not included)
 
 
-		// Create a temporary hash with one entry per unique sequence, where the key is the actual sequence
+		// Create a temp hash with one entry per unique sequence, where key is the actual sequence
 		// and the value is the number of times that sequence appears in the fastq data.
 		var hash = {};									// create empty object
 		a.forEach(function(seq) {
@@ -286,8 +317,9 @@ one_fish = function(inpath, finish) {
 			if(a.count > b.count) return -1;
 			return 0;
 		});
+
 		// 'sequences' is like [ { sequence: "GTCA", count: 456 }, ... ]
-		fs.writeFileSync(outpath+"-hash.json", util.inspect(sequences), "utf8");
+		//fs.writeFileSync(outpath+"-hash.json", util.inspect(sequences), "utf8");
 
 
 
@@ -450,17 +482,15 @@ one_fish = function(inpath, finish) {
 		// Write out the genos file
 		// -----------------------------
 
-		var fd = fs.openSync( outpath + "-genos.csv", "w" );
-		fs.writeSync( fd, [
-			file,
-			"Raw-Reads," + fish.raw_reads,
-			"On-Target reads," + fish.hits,
-			"% On-Target," + fish.hit_pct,
-			"IFI score," + fish.ifi,
-		].join("\n") + "\n" );
-		fs.writeSync( fd, "\n" );
+		var aa = []
 
-		fs.writeSync( fd, [
+		aa.push([file]);
+		aa.push(["Raw-Reads", fish.raw_reads,]);
+		aa.push(["On-Target reads", fish.hits,]);
+		aa.push(["% On-Target", fish.hit_pct,]);
+		aa.push(["IFI score", fish.ifi,]);
+
+		aa.push([
 			"Gene",
 			"# A1",
 			"# A2",
@@ -475,76 +505,78 @@ one_fish = function(inpath, finish) {
 			"# Gene reads",
 			"% On-target gene",
 			"% On-target fish ",
-		].join(",") + "\n" );
-		fs.writeSync( fd, "\n" );
+		])
+		aa.push([]);
 
 
 		// determine sex and write out line for it
 		var fp_hits = 0;
 		var prb_hits = 0;
 		fish.sex_hits = 0;
-		sequences.forEach(function(sc) {
-			var seq = sc.sequence;
-			var count = sc.count;
-			if(seq.indexOf(sex_fp) == 0) {
-				fp_hits += count;
-				if( seq.indexOf(sex_prb) != -1) {
-					prb_hits += count;
-					fish.sex_hits += count;
+		if(sex_fp) {
+			sequences.forEach(function(sc) {
+				var seq = sc.sequence;
+				var count = sc.count;
+				if(seq.indexOf(sex_fp) == 0) {
+					fp_hits += count;
+					if( seq.indexOf(sex_prb) != -1) {
+						prb_hits += count;
+						fish.sex_hits += count;
+					}
 				}
-			}
-		});
+			});
 
 
-		if(fp_hits == 0)
-			fp_hits = 1;
+			if(fp_hits == 0)
+				fp_hits = 1;
 
-		var hit_pct = mk_pct(fp_hits, prb_hits);
-		var adj_hits = toInt(fish.hits * 0.004);		// XXX ??
-		if(adj_hits == 0)
-			adj_hits = 1;
-		if(prb_hits == 0)
-			prb_hits = 1;
-		var ratio = Math.round((adj_hits / prb_hits) * 1000) / 1000;
-		//var sex_genotype, sex_genoclass;
-		if(adj_hits + prb_hits < 10) {
-			fish.sex_genotype = "-lac-";
-			fish.sex_genoclass = "NA";
-		}
-		else {
-			if(ratio >= 10) {
-				fish.sex_genotype = "XX";
-				fish.sex_genoclass = "A1HOM";
-			}
-			else
-			if(ratio >= 5) {
-				fish.sex_genotype = "-ib1-";
-				fish.sex_genoclass = "NA";
-			}
-			else
-			if(ratio >= 0.2) {
-				fish.sex_genotype = "XY";
-				fish.sex_genoclass = "HET";
-			}
-			else
-			if(ratio >= 0.1) {
-				fish.sex_genotype = "-ib2-";
+			var hit_pct = mk_pct(fp_hits, prb_hits);
+			var adj_hits = toInt(fish.hits * 0.004);		// XXX ??
+			if(adj_hits == 0)
+				adj_hits = 1;
+			if(prb_hits == 0)
+				prb_hits = 1;
+			var ratio = Math.round((adj_hits / prb_hits) * 1000) / 1000;
+			//var sex_genotype, sex_genoclass;
+			if(adj_hits + prb_hits < 10) {
+				fish.sex_genotype = "-lac-";
 				fish.sex_genoclass = "NA";
 			}
 			else {
-				fish.sex_genotype = "XY";
-				fish.sex_genoclass = "A2HOM";
+				if(ratio >= 10) {
+					fish.sex_genotype = "XX";
+					fish.sex_genoclass = "A1HOM";
+				}
+				else
+				if(ratio >= 5) {
+					fish.sex_genotype = "-ib1-";
+					fish.sex_genoclass = "NA";
+				}
+				else
+				if(ratio >= 0.2) {
+					fish.sex_genotype = "XY";
+					fish.sex_genoclass = "HET";
+				}
+				else
+				if(ratio >= 0.1) {
+					fish.sex_genotype = "-ib2-";
+					fish.sex_genoclass = "NA";
+				}
+				else {
+					fish.sex_genotype = "XY";
+					fish.sex_genoclass = "A2HOM";
+				}
 			}
-		}
 
-		fs.writeSync( fd, "Ots_SEXY3-1,X="+adj_hits+",Y="+prb_hits+","+ratio+",,,,\""+fish.sex_genotype+"\","+fish.sex_genoclass+",,,"+fish.sex_hits+","+hit_pct+"\n");
-		fs.writeSync( fd, "\n" );
+			aa.push( ["Ots_SEXY3-1","X="+adj_hits,"Y="+prb_hits,ratio,"","","",fish.sex_genotype,fish.sex_genoclass,"","",fish.sex_hits,hit_pct]);
+			aa.push([]);
+		}
 
 
 		// Write out a line for each gene
 		gene_info.forEach(function(g) {
 			var fg = fish.genes[g.name];
-			fs.writeSync( fd, [
+			aa.push([
 				g.name,								// fish file name
 				g.allele1 + "="+ fg.p1_hits,		// # of reads for allele 1
 				g.allele2 + "="+fg.p2_hits,			// # of reads for allele 2
@@ -552,7 +584,7 @@ one_fish = function(inpath, finish) {
 				g.allele1 + "="+ fg.corr_p1_hits,	// # of reads for allele 1 corrected
 				g.allele2 + "="+fg.corr_p2_hits,	// # of reads for allele 2 corrected
 				fg.a1a2_ratio,						// ratio A1:A2 corrected
-				'"'+fg.genotype+'"',						// genotype
+				fg.genotype,						// genotype
 				fg.genoclass,						// genotype class (HOM vs HET)
 				g.a1_corr,							// A1 correction factor
 				g.a2_corr,							// A2 correction factor
@@ -561,12 +593,11 @@ one_fish = function(inpath, finish) {
 				fg.hit_pct_fish,					// % on target for gene in total on target reads (total on-target for fish)
 				"-",
 				"-",
-			].join(",") + "\n");
+			]);
 		});
-		fs.writeSync( fd, "\n" );
+		aa.push([]);
 
-
-		fs.close(fd);		// finish off the genos file
+		xlsx.save(aa, outpath + "-genos.xlsx", file);
 
 		// write out a JSON file containing the whole fish object
 		//fs.writeFile(data_out+"/"+fish.name+"-fish.json", util.inspect(fish), "utf8");
@@ -602,14 +633,15 @@ var compile = function(finish) {
 		});
 		headings += "\n";
 
-		var fd = fs.openSync( output_filename, "w" );		// open the output file for writing
-		fs.writeSync(fd, headings);							// write the header line
+		var aa = []
+		aa.push(headings.trim().split(","));	// XXX avoid this split
 
 		// iterate through all the the little fishies
 		for(var name in fishies) {
 			var fish = fishies[name];						// Wanda
 
-			var enough_typed = fish.pct_typed >= thresh;	// XXX this is only being used for "N" - why not others?
+			// XXX this is only being used for "N" - why not others?
+			var enough_typed = fish.pct_typed >= thresh;
 
 			var a = [
 				fish.name,
@@ -622,30 +654,32 @@ var compile = function(finish) {
 			];
 
 
-			// XXX this special case is annoying.
-			switch(flag) {
-			case "C":
-				a.push( fish.sex_hits );
-				break;
-			case "N":
-				var nt = "-";
-				if(enough_typed) {		// XXX
-					nt = "00";
-					switch(fish.sex_genoclass) {
-					case "A1HOM": nt = "11"; break;
-					case "A2HOM": nt = "22"; break;
-					case "HET":   nt = "12"; break;
+			if(sex_fp) {
+				// XXX this special case is annoying.
+				switch(flag) {
+				case "C":
+					a.push( fish.sex_hits );
+					break;
+				case "N":
+					var nt = "-";
+					if(enough_typed) {		// XXX
+						nt = "00";
+						switch(fish.sex_genoclass) {
+						case "A1HOM": nt = "11"; break;
+						case "A2HOM": nt = "22"; break;
+						case "HET":   nt = "12"; break;
+						}
 					}
+					a.push(nt);
+					break;
+				case "S":
+				default:
+					a.push( fish.sex_genotype );
+					break;
 				}
-				a.push(nt);
-				break;
-			case "S":
-			default:
-				a.push( '"'+fish.sex_genotype+'"' );
-				break;
-			}
 
-			a.push("");
+				a.push("");
+			}
 
 			// iterate through the genes and output a column for each
 			gene_info.forEach(function(g) {
@@ -671,26 +705,26 @@ var compile = function(finish) {
 				case "S":
 				default:
 					if(fg.genotype[0] == '-') {
-						a.push( '"'+fg.genotype+'"' );
-						a.push( '"'+fg.genotype+'"' );
+						a.push( fg.genotype );
+						a.push( fg.genotype );
 					}
 					else {
-						a.push( '"'+fg.genotype[0]+'"' );
-						a.push( '"'+fg.genotype[1]+'"' );
+						a.push( fg.genotype[0] );
+						a.push( fg.genotype[1] );
 					}
 					break;
 				}
 			});
 
-			fs.writeSync(fd, a.join(",") + "\n");	// write out array elements, separated with commas as a line
+			aa.push(a);
 		}
 
-		fs.close(fd);
+		xlsx.save(aa, output_filename+".xlsx", flag);
 	}
 
-	compile("C", 0, data_out+"/compiled_counts.csv");
-	compile("S", 0, data_out+"/compiled_snps.csv");
-	compile("N", 90, data_out+"/compiled_numeric.csv");
+	compile("C", 0, data_out+"/compiled_counts");
+	compile("S", 0, data_out+"/compiled_snps");
+	compile("N", 90, data_out+"/compiled_numeric");
 	
 	finish();
 
@@ -702,28 +736,17 @@ var compile = function(finish) {
 // Scan "data_in" for all files, in any sub-directories that end with .fasq.gz
 // XXX Also look for any uncompressed .fastq files and consume them too?
 // -----------------------------
-files = [];
-scan_dir = function(path) {
-	var a = fs.readdirSync(path);
-	a.forEach(function(f) {
-		var p = path+"/"+f
-		if(fs.statSync(p).isDirectory()) {
-			scan_dir(p);
-		}
-		else {
-			if(p.lcase().endsWith(".fastq.gz")) {
-				files.push(p);
-			}
-		}
-	});
-}
-scan_dir(data_in);
+files = scan_dir(data_in, /\.fastq.gz$/ );
+
 var m = new Meet();
+
 // queue each .fastq.gz for processing by one_fish()
 files.forEach(function(file) {
 	m.queue(one_fish, file);
 });
+
 m.queue(compile);				// then compile the results of all fish
+
 m.allDone(function() {
 	log("Finished");
 	process.exit();		// exit program

@@ -10,7 +10,9 @@
     "g": "^2.0.1",
     "log5": "^2.0.0",
     "meet": "^2.0.0",
-    "sleepless": "^2.4.7"
+    "runq": "^1.1.0",
+    "sleepless": "^2.4.7",
+    "sleepless-xlsx": "^1.0.0"
   },
   "devDependencies": {},
   "scripts": {
