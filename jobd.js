@@ -1,6 +1,8 @@
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 // Fishy Science Daemon Version 1
+// Copyright 2017 Sleepless Software Inc. All Rights Reserved
+// Author: Joe Hitchens <joe@sleepless.com>
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
@@ -62,6 +64,9 @@ var start = function(name) {
 	clobber_file("working/"+name+"/log.txt")
 	clobber_file("working/"+name+"/errors.txt")
 
+	// XXX as long as this is using spawnSync, it's probably not leveraging cpus.
+	// XXX the cpu leveraging should be done in the science.js world anyway, since
+	// XXX this is probably never going to be running multiple jobs at once.
 	var r = spawnSync("node", [script], {
 		cwd: "working/"+name,
 		timeout: 1000 * 60 * 60,

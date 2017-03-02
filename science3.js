@@ -1,6 +1,8 @@
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 // Fishy Science Version 4
+// Copyright 2017 Sleepless Software Inc. All Rights Reserved
+// Author: Joe Hitchens <joe@sleepless.com>
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
@@ -109,6 +111,8 @@ var scan_dir = function(path, pattern) {
 // -----------------------------
 // Here's where we start the real science work
 // -----------------------------
+
+log("Fishy Science Version 4");
 
 var data_in = process.argv[2] || "data_in";
 var data_out = process.argv[3] || "data_out";
@@ -286,7 +290,7 @@ one_fish = function(inpath, finish) {
 			a.push( lines[i+1].trim() );			// add the line with the sequence to the array
 		}
 		// 'a' looks like [ "ACTG...", "GTCA...", ... ]
-		log("FISH \""+fish.name+"\" ("+a.length+" sequences)");
+		log("Fish: \""+fish.name+"\" ("+a.length+" sequences)");
 
 		fish.raw_reads = a.length;					// note the # of raw reads found in the fastq file (sex line line not included)
 
@@ -615,7 +619,7 @@ one_fish = function(inpath, finish) {
 // Compile data about all the fish into a several csv files
 // -----------------------------
 var compile = function(finish) {
-	log("COMPILE: ");
+	log("Compiling...");
 
 	var compile = function(flag, thresh, output_filename) {
 
