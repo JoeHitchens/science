@@ -324,7 +324,7 @@ one_fish = function(inpath, finish) {
 		});
 
 		// 'sequences' is like [ { sequence: "GTCA", count: 456 }, ... ]
-		//fs.writeFileSync(outpath+"-hash.json", util.inspect(sequences), "utf8");
+		fs.writeFileSync(outpath+"-hash.json", util.inspect(sequences), "utf8");
 
 
 
