@@ -91,7 +91,7 @@ var scan_dir = function(path, pattern) {
 	a.forEach(function(f) {
 		var p = path+"/"+f
 		if(fs.statSync(p).isDirectory()) {
-			scan_dir(p);
+			found = found.concat(scan_dir(p, pattern));
 		}
 		else {
 			if(pattern) {
@@ -104,6 +104,7 @@ var scan_dir = function(path, pattern) {
 			}
 		}
 	});
+	log(path+": "+o2j(found))
 	return found;
 }
 
