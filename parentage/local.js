@@ -9,10 +9,25 @@ out = function(s) {
 }
 
 
+downloadURI = function(uri, name) {
+	var link = document.createElement("a");
+	link.download = name;
+	link.href = uri;
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+	delete link;
+}
+
+
 to_text = function(file, cb) {
 	var fr = new FileReader();
 	fr.onload = function() { cb(fr.result); }
 	fr.readAsText(file);
+
+	//fr2 = new FileReader();
+	//fr2.onload = function() { data_url = fr2.result; }
+	//fr2.readAsDataURL(file);
 }
 
 abort = function(s) {
@@ -25,6 +40,12 @@ warn = function(s) {
 
 valid_nwfsc = function(s) {
 	return s.match( /\d{5}-\d{4}/ );
+}
+
+fix_origin = function(s) {
+	var s = s.trim();
+	if(s.match( /^[a-zA-Z]+$/i ) ) { return s; }
+	return "";
 }
 
 FDrop.attach(drop_target, function(files) {
@@ -64,9 +85,13 @@ FDrop.attach(drop_target, function(files) {
 		var h_offs = {};
 		var h_dam = {};
 		var h_sire = {};
+		var h_prnt = {};
 		var num_offs = 0;
 		var num_juve = 0;
 		var num_adlt = 0;
+		var num_dams = 0;
+		var num_sires = 0;
+		var num_prnts = 0;
 
 		for(var i = 1; i < csv.length; i++) {		// skip first row (headings)
 			var row = csv[i];
@@ -106,23 +131,63 @@ FDrop.attach(drop_target, function(files) {
 					offs.date_of_capture = new Date(date_of_capture * 1000);
 				}
 
+				var dam_nwfsc = valid_nwfsc(row[cols.dam.cnum]);
+				offs.dam = dam_nwfsc;
+
+				var sire_nwfsc = valid_nwfsc(row[cols.sire.cnum]);
+				offs.sire = sire_nwfsc;
+
+				var fun = function(prnt_nwfsc, sex, origin) {
+					var prnt = h_prnt[prnt_nwfsc];
+					if(!prnt) {
+						prnt = {
+							nwfsc: prnt_nwfsc,
+							date: 0,
+							julian_date: 0,
+							sex: sex,
+							origin: fix_origin(origin),
+							length: 0,
+							offs_w_known_mates: 0,
+							num_mates: 0,
+							offs_w_uc_mates: 0,
+							offs_total: 0,
+						};
+						h_prnt[prnt_nwfsc] = prnt;
+						num_prnts += 1;
+						return 1;
+					}
+					return 0;
+				}
+
+				num_dams += fun(dam_nwfsc, "F", row[cols.dam_origin.cnum]);
+				num_sires += fun(sire_nwfsc, "M", row[cols.sire_origin.cnum]);
 			}
 			else {
-				warn("found "+nwfsc+" on both lines "+offs.line+" and "+i);
+				warn("Found "+nwfsc+" on both lines "+offs.line+" and "+i);
 			}
 
-			//if(offs.fl && offs.fl != fl) {
-			//	out(nwfsc+": differing value for FL (first saw "+offs.fl+", also found "+fl+")");
-			//}
+			/*
+			if(offs.fl && offs.fl != fl) {
+				out(nwfsc+": differing value for FL (first saw "+offs.fl+", also found "+fl+")");
+			}
 
-			//if(offs.date_of_capture && offs.date_of_capture != date_of_capture) {
-			//	out(nwfsc+": differing value for Date-of-Capture (first saw "+offs.date_of_capture+", also found "+date_of_capture+")");
-			//}
-
+			if(offs.date_of_capture && offs.date_of_capture != date_of_capture) {
+				out(nwfsc+": differing value for Date-of-Capture (first saw "+offs.date_of_capture+", also found "+date_of_capture+")");
+			}
+			*/
 		}
 
 		out("Skipped lines: "+skipped_lines+" (Lines where NWFSC# column was not like 12345-1234)");
 		out("Unique offspring found: "+num_offs+" ("+num_juve+" juvenile, "+num_adlt+" adult)");
+		out("Parents found: "+num_prnts+" ("+num_dams+" dams, "+num_sires+" sires)");
+
+		dl_csv = [
+			["foo", 3, "bar", 7],
+			["foo", 7, "bar", 3],
+		];
+
+		downloadURI(encodeURI("data:text/csv;charset=utf-8,"+CSV.to_string(dl_csv)), "newfile.csv");
+		//window.open(encodeURI("data:text/csv;charset=utf-8,"+CSV.to_string(dl_csv)), "_blank");
 
 	});
 
