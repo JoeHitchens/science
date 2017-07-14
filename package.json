@@ -7,6 +7,7 @@
     "science": "science3.js"
   },
   "dependencies": {
+    "fdrop": "^1.0.1",
     "g": "^2.0.1",
     "log5": "^2.0.0",
     "meet": "^2.0.0",
