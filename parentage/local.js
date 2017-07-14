@@ -16,7 +16,15 @@ to_text = function(file, cb) {
 }
 
 abort = function(s) {
-	alert(s+"<br>FAILED");
+	alert("Aborted.\n\n"+s);
+}
+
+warn = function(s) {
+	out("WARNING: "+s);
+}
+
+valid_nwfsc = function(s) {
+	return s.match( /\d{5}-\d{4}/ );
 }
 
 FDrop.attach(drop_target, function(files) {
@@ -52,46 +60,69 @@ FDrop.attach(drop_target, function(files) {
 		});
 
 
-		var offspring = {};
-		var num_offspring = 0;
-		var num_juvenile = 0;
-		var num_adult = 0;
+		var skipped_lines = 0;
+		var h_offs = {};
+		var h_dam = {};
+		var h_sire = {};
+		var num_offs = 0;
+		var num_juve = 0;
+		var num_adlt = 0;
 
 		for(var i = 1; i < csv.length; i++) {		// skip first row (headings)
 			var row = csv[i];
 
-			var nwfsc = row[cols.nwfsc.cnum];
-			var o = offspring[nwfsc];
-			if(!o) {
-				o = {
+			var nwfsc = row[cols.nwfsc.cnum];	// get NWFSC# (some sort of unique fish identifier)
+			//if(!nwfsc) { skipped_lines += 1; continue; }
+			//if(!valid_nwfsc(nwfsc)) { return abort("Bad NWFSC# '"+nwfsc+"' on line "+i); };
+			if(!valid_nwfsc(nwfsc)) { skipped_lines += 1; continue; }
+
+			var fl = row[cols.fl.cnum];			// get FL (fish length)
+			var date_of_capture = us2ts(row[cols.date_of_capture.cnum]);
+
+			var offs = h_offs[nwfsc];			// get offs obj from hash
+			if(!offs) {
+				// not yet present
+				offs = {						// create it
+					line: i,
 					fl: 0,
 				}
-				offspring[nwfsc] = o;
-				num_offspring += 1;
-			}
+				h_offs[nwfsc] = offs;			// put it in hash
+				num_offs += 1;					// track # of objs in hash
 
-			var fl = row[cols.fl.cnum];
-			if(o.fl == 0) {
-				o.fl = fl;
-			}
-			else {
-				if(o.fl != fl) {
-					out(nwfsc+": differing value for FL (first found "+o.fl+", also found "+fl+")");
+				offs.fl = fl;					// note first seen FL
+
+				// is adult or juvenile?
+				if(offs.fl < 300) {
+					offs.adult = false;
+					num_juve += 1;
 				}
-			}
-			if(o.fl < 300) {
-				o.adult = false;
-				num_juvenile += 1;
+				else {
+					offs.adult = true;
+					num_adlt += 1;
+				}
+
+				offs.date_of_capture = null;
+				if(date_of_capture) {
+					offs.date_of_capture = new Date(date_of_capture * 1000);
+				}
+
 			}
 			else {
-				o.adult = true;
-				num_adult += 1;
+				warn("found "+nwfsc+" on both lines "+offs.line+" and "+i);
 			}
 
+			//if(offs.fl && offs.fl != fl) {
+			//	out(nwfsc+": differing value for FL (first saw "+offs.fl+", also found "+fl+")");
+			//}
+
+			//if(offs.date_of_capture && offs.date_of_capture != date_of_capture) {
+			//	out(nwfsc+": differing value for Date-of-Capture (first saw "+offs.date_of_capture+", also found "+date_of_capture+")");
+			//}
 
 		}
 
-		out("Unique NWFSC#'s found: "+num_offspring+" ("+num_juvenile+" juvenile, "+num_adult+" adult)");
+		out("Skipped lines: "+skipped_lines+" (Lines where NWFSC# column was not like 12345-1234)");
+		out("Unique offspring found: "+num_offs+" ("+num_juve+" juvenile, "+num_adlt+" adult)");
 
 	});
 
