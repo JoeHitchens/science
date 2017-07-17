@@ -187,7 +187,6 @@ FDrop.attach(drop_target, function(files) {
 		];
 
 		downloadURI(encodeURI("data:text/csv;charset=utf-8,"+CSV.to_string(dl_csv)), "newfile.csv");
-		//window.open(encodeURI("data:text/csv;charset=utf-8,"+CSV.to_string(dl_csv)), "_blank");
 
 	});
 
