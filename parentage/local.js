@@ -37,7 +37,7 @@ warn = function(s) {
 }
 
 fix_nwfsc = function(s) {
-	return s.match( /\d{5}-\d{4}/ ) ? s : ""
+	return s.match( /^\d{5}-\d{4}$/ ) ? s : ""
 }
 
 fix_origin = function(s) {
@@ -99,7 +99,7 @@ FDrop.attach(drop_target, function(files) {
 					// these fields from input
 					line: i,
 					nwfsc: nwfsc,
-					brood_year: row[cols.brood_year.cnum],
+					brood_year: toInt(row[cols.brood_year.cnum]),
 					fl: row[cols.fl.cnum],
 					date_of_capture: us2ts(row[cols.date_of_capture.cnum]),
 					pp: row[cols.pp.cnum],
@@ -109,7 +109,7 @@ FDrop.attach(drop_target, function(files) {
 					dad_origin: fix_origin(row[cols.sire_origin.cnum]),
 					// these fields to output
 					year_of_return: 0,
-					date: 0,
+					date: "",
 					julian_date: 0,
 					sex: "",
 					origin: "",
@@ -120,6 +120,7 @@ FDrop.attach(drop_target, function(files) {
 					kids_total: 0,
 					// for internal use
 					juve_kids: 0,		// # of juvenile offspring
+					adlt_kids: 0,		// # of adult offspring
 					mates: {},
 					num_mates: 0,
 				}
@@ -154,13 +155,74 @@ FDrop.attach(drop_target, function(files) {
 			var id_mom = fish.mom;		// get NWFSC# for mom
 			var id_dad = fish.dad;		// get NWFSC# for dad
 
-			var mom = h_fish[id_mom] ? h_fish[id_mom] : null;
-			var dad = h_fish[id_dad] ? h_fish[id_dad] : null;
+			if(!fix_nwfsc(id_mom) && !fix_nwfsc(id_dad)) {
+				continue;
+			}
+
+			var mom = null;
+			if(fix_nwfsc(id_mom)) {
+				var mom = h_fish[id_mom];
+				if(!mom) {
+					mom = {
+						nwfsc: id_mom,
+						fl: 0,
+						year_of_return: 0,
+						date: "",
+						julian_date: 0,
+						length: 0,
+						kids_w_known_mates: 0,
+						num_mates: 0,
+						kids_w_uc_mates: 0,
+						kids_total: 0,
+						juve_kids: 0,		// # of juvenile offspring
+						adlt_kids: 0,		// # of adult offspring
+						mates: {},
+						num_mates: 0,
+					}
+					h_fish[id_mom] = mom;
+				}
+				else {
+					if(mom.year_of_return != fish.brood_year) {
+						warn("Dam/offspring year mismatch: Input line #: "+fish.line);
+					}
+				}
+			}
+
+			var dad = null;
+			if(fix_nwfsc(id_dad)) {
+				var dad = h_fish[id_dad];
+				if(!dad) {
+					dad = {
+						nwfsc: id_dad,
+						fl: 0,
+						year_of_return: 0,
+						date: "",
+						julian_date: 0,
+						length: 0,
+						kids_w_known_mates: 0,
+						num_mates: 0,
+						kids_w_uc_mates: 0,
+						kids_total: 0,
+						juve_kids: 0,		// # of juvenile offspring
+						adlt_kids: 0,		// # of adult offspring
+						mates: {},
+						num_mates: 0,
+					}
+					h_fish[id_dad] = dad;
+				}
+				else {
+					if(dad.year_of_return != fish.brood_year) {
+						warn("Sire/offspring year mismatch");
+					}
+				}
+			}
 
 			if(mom) {
+				mom.year_of_return = fish.brood_year;
 				mom.origin = fish.mom_origin;
-				mom.sex = "F"
-				mom.juve_kids += fish.fl < 300 ? 1 : 0
+				mom.sex = "F";
+				mom.juve_kids += fish.fl < 300 ? 1 : 0;
+				mom.adlt_kids += fish.fl >= 300 ? 1 : 0;
 				h_moms[id_mom] = mom;		// put mom fish obj into mom hash
 				h_prnts[id_mom] = mom;		// put mom fish obj into all-parents hash
 				if(dad) {
@@ -171,10 +233,13 @@ FDrop.attach(drop_target, function(files) {
 					mom.kids_w_uc_mates += 1;		// this mom has one more kid with an unknown mate
 				}
 			}
+
 			if(dad) {
+				dad.year_of_return = fish.brood_year;
 				dad.origin = fish.dad_origin;
-				dad.sex = "M"
-				dad.juve_kids += fish.fl < 300 ? 1 : 0
+				dad.sex = "M";
+				dad.juve_kids += fish.fl < 300 ? 1 : 0;
+				dad.adlt_kids += fish.fl >= 300 ? 1 : 0;
 				h_dads[id_dad] = dad;		// put dad fish obj into dad hash
 				h_prnts[id_dad] = dad;		// put mom fish obj into all-parents hash
 				if(mom) {
@@ -210,14 +275,18 @@ FDrop.attach(drop_target, function(files) {
 
 		for(var k in h_fish) {
 			var fish = h_fish[k];		// get the fish obj out of hash
-			if(fish.juve_kids > 0) { juve_rows.push(fish); } else  { adlt_rows.push(fish); };
+			if(fish.juve_kids > 0) {
+				juve_rows.push(fish);
+			}
+			if(fish.adlt_kids > 0) {
+				adlt_rows.push(fish);
+			}
 		}
-
 
 		juve_rows.sort(function(a, b) { if(a.nwfsc < b.nwfsc) return -1; if(a.nwfsc > b.nwfsc) return 1; return 0; });
 		adlt_rows.sort(function(a, b) { if(a.nwfsc < b.nwfsc) return -1; if(a.nwfsc > b.nwfsc) return 1; return 0; });
 
-		var dl = function(prnts) {
+		var dl = function(prnts, fname) {
 			var a = [hdrs];
 			prnts.forEach(function(prnt) {
 				a.push([
@@ -234,14 +303,11 @@ FDrop.attach(drop_target, function(files) {
 					prnt.kids_total,
 				]);
 			});
-			downloadURI(encodeURI("data:text/csv;charset=utf-8,"+CSV.to_string(a)), "newfile.csv");
+			downloadURI(encodeURI("data:text/csv;charset=utf-8,"+CSV.to_string(a)), fname);
 		}
 
-		dl(juve_rows);
-		//dl(adlt_rows);
-		
-
-
+		setTimeout(function() { dl(juve_rows, "offspring-juvenile.csv"); }, 500);
+		setTimeout(function() { dl(adlt_rows, "offspring-adult.csv"); }, 1000);
 
 		/*
 		out("Parents found: "+num_prnts+" ("+num_moms+" dams, "+num_dads+" sires)");
