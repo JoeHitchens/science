@@ -37,33 +37,35 @@ warn = function(s) {
 }
 
 fix_nwfsc = function(s) {
-	return s.match( /^\d{5}-\d{4}$/ ) ? s : ""
+	return s.trim().match( /^\d{5}-\d{4}$/ ) ? s : ""
 }
 
+// If 's' contains nothing but letters, then return them, otherwise return empty string.
 fix_origin = function(s) {
-	return s.match( /^[a-zA-Z]+$/i ) ? s : ""
+	return s.trim().match( /^[a-zA-Z]+$/i ) ? s : ""
 }
 
 FDrop.attach(drop_target, function(files) {
 
-	var file = files[0];
+	// file was dropped onto page.
+	var file = files[0];		// get the first file object (if you drop 2 or more, all but first are ignored)
 	if(!file) { return; };
 
-	var fname = file.name;
+	var fname = file.name;		// name of the file
 	if(!fname.match( /\.csv$/i )) { return abort("I can only eat CSV files."); };
 
-	var fname = file.name.replace(/\.csv$/i, "").toId();
-	console.log("fname="+fname);
+	var fname = file.name.replace(/\.csv$/i, "").toId();	// remove the .csv from end of file name
 
+	// convert the file object to actual data
 	to_text(file, function(txt) {
-		var csv = CSV.from_string(txt);
+		var csv = CSV.from_string(txt);		// convert the file contents to an array (rows) of arrays (columns)
 
 		out("Loaded \""+file.name+"\".");
 		out("File contains "+csv.length+" lines.");
-		if(csv.length < 2) { return abort("Seems a little short doesn't it?"); }
+		if(csv.length < 2) { return abort("Less then 2 lines?  Seems a little short doesn't it?"); }
 
+		// look for certain labels in the first row of the csv and note their positions, keyed by label, in the 'cols' hash.
 		var cols = {};
-
 		"NWFSC#;Brood Year;FL;Date of Capture;PP?;Dam;Sire;Dam Origin;Sire Origin".split(";").forEach(function(h) {
 			var hrow = csv[0];
 			for(var i = 0; i < hrow.length; i++) {
@@ -71,38 +73,39 @@ FDrop.attach(drop_target, function(files) {
 					cols[h.toId()] = {
 						cnum: i,
 					};
-					//var k = h.toId().ucase();
-					//global[k] = i;
 				}
 			}
 		});
+		// cols looks like, { "NWFSC#" : 1, ... }
 
 
-		var skipped_lines = 0;
+		var skipped_lines = 0;	// count of lines that were ignored
 		var h_fish = {};		// hash of objects, one per fish found in input
-		var num_fish = 0;
+		var num_fish = 0;		// count of fish objects that are in h_fish
 		var num_juve = 0;
 		var num_adlt = 0;
 
-		for(var i = 1; i < csv.length; i++) {		// skip first row (headings)
+		// loop through each line in the csv starting with the 2nd (just pass header line)
+		for(var i = 1; i < csv.length; i++) {
 			var row = csv[i];
 
-			var nwfsc = row[cols.nwfsc.cnum];	// get NWFSC# (some sort of unique fish identifier)
+			var nwfsc = row[cols.nwfsc.cnum];	// get NWFSC# (universally unique fish identifier?)
+			// skip the rows if there's not a valid nwfsc # on it.
 			if(!fix_nwfsc(nwfsc)) { skipped_lines += 1; continue; }
+			// number appears kosher
 
 			var fish = h_fish[nwfsc];			// get fish obj from hash
 			if(!fish) {
-				// not yet present
-
-				// create new fish object for this nwfsc #
+				// First time we've seen this fish (nwfsc #), so
+				// create new fish object with this #.
 				fish = {
-					// these fields from input
-					line: i,
+					// set these fields from input
+					line: i,		// line # in csv file where we first saw this # in the NWFSC# column
 					nwfsc: nwfsc,
-					brood_year: toInt(row[cols.brood_year.cnum]),
-					fl: row[cols.fl.cnum],
-					date_of_capture: us2ts(row[cols.date_of_capture.cnum]),
-					pp: row[cols.pp.cnum],
+					brood_year: toInt(row[cols.brood_year.cnum]),			// contents of the "Brood Year" column as an integer
+					fl: row[cols.fl.cnum],									// fish length?
+					date_of_capture: us2ts(row[cols.date_of_capture.cnum]),	// a unix timestamp or 0 if date can't be parsed
+					pp: row[cols.pp.cnum],									// what is PP again?
 					mom: fix_nwfsc(row[cols.dam.cnum]),
 					dad: fix_nwfsc(row[cols.sire.cnum]),
 					mom_origin: fix_origin(row[cols.dam_origin.cnum]),
@@ -114,10 +117,13 @@ FDrop.attach(drop_target, function(files) {
 					sex: "",
 					origin: "",
 					length: row[cols.fl.cnum],
-					kids_w_known_mates: 0,
 					num_mates: 0,
-					kids_w_uc_mates: 0,
-					kids_total: 0,
+					juve_kids_w_known_mates: 0,
+					juve_kids_w_uc_mates: 0,
+					juve_kids_total: 0,
+					adlt_kids_w_known_mates: 0,
+					adlt_kids_w_uc_mates: 0,
+					adlt_kids_total: 0,
 					// for internal use
 					juve_kids: 0,		// # of juvenile offspring
 					adlt_kids: 0,		// # of adult offspring
@@ -125,13 +131,18 @@ FDrop.attach(drop_target, function(files) {
 					num_mates: 0,
 				}
 
-				h_fish[nwfsc] = fish;			// put it in hash
-				num_fish += 1;					// track # of objs in hash
+				h_fish[nwfsc] = fish;			// put the object into the hash
+				num_fish += 1;					// increment the # of fish found
 
-				if(fish.fl < 300) { num_juve += 1 } else { num_adlt += 1 };
+				// increment counts for juvenile or adult based on the fishes FL #.
+				if(fish.fl < 300) {
+					num_juve += 1;
+				} else {
+					num_adlt += 1;
+				}
 			}
 			else {
-				warn("Found "+nwfsc+" on both lines "+fish.line+" and "+i);
+				warn("Found NWFSC# "+nwfsc+" on both lines "+fish.line+" and "+i);
 			}
 		}
 
@@ -141,10 +152,11 @@ FDrop.attach(drop_target, function(files) {
 		var num_dads = 0;
 		var h_prnts = {};		// hash of both moms and dads
 		var num_prnts = 0;
+		var num_year_mismatches = 0;
 
 
-		out("Skipped lines: "+skipped_lines+" (Where NWFSC# column didn't contain an NWFSC#");
-		out("Unique NWFSC#'s found: "+num_fish+" ("+num_juve+" juvenile, "+num_adlt+" adult)");
+		out("Skipped "+skipped_lines+" lines.");
+		out("Found "+num_fish+" unique fish ("+num_juve+" juvenile, "+num_adlt+" adult)");
 
 
 		// walk through the fish hash
@@ -170,10 +182,13 @@ FDrop.attach(drop_target, function(files) {
 						date: "",
 						julian_date: 0,
 						length: 0,
-						kids_w_known_mates: 0,
 						num_mates: 0,
-						kids_w_uc_mates: 0,
-						kids_total: 0,
+						juve_kids_w_known_mates: 0,
+						juve_kids_w_uc_mates: 0,
+						juve_kids_total: 0,
+						adlt_kids_w_known_mates: 0,
+						adlt_kids_w_uc_mates: 0,
+						adlt_kids_total: 0,
 						juve_kids: 0,		// # of juvenile offspring
 						adlt_kids: 0,		// # of adult offspring
 						mates: {},
@@ -183,7 +198,8 @@ FDrop.attach(drop_target, function(files) {
 				}
 				else {
 					if(mom.year_of_return != fish.brood_year) {
-						warn("Dam/offspring year mismatch: Input line #: "+fish.line);
+						warn("Line "+fish.line+": Dam("+mom.nwfsc+")/offspring("+fish.nwfsc+") year mismatch");
+						num_year_mismatches += 1;
 					}
 				}
 			}
@@ -199,10 +215,13 @@ FDrop.attach(drop_target, function(files) {
 						date: "",
 						julian_date: 0,
 						length: 0,
-						kids_w_known_mates: 0,
 						num_mates: 0,
-						kids_w_uc_mates: 0,
-						kids_total: 0,
+						juve_kids_w_known_mates: 0,
+						juve_kids_w_uc_mates: 0,
+						juve_kids_total: 0,
+						adlt_kids_w_known_mates: 0,
+						adlt_kids_w_uc_mates: 0,
+						adlt_kids_total: 0,
 						juve_kids: 0,		// # of juvenile offspring
 						adlt_kids: 0,		// # of adult offspring
 						mates: {},
@@ -212,7 +231,8 @@ FDrop.attach(drop_target, function(files) {
 				}
 				else {
 					if(dad.year_of_return != fish.brood_year) {
-						warn("Sire/offspring year mismatch");
+						warn("Line "+fish.line+": Sire("+dad.nwfsc+")/offspring("+fish.nwfsc+") year mismatch");
+						num_year_mismatches += 1;
 					}
 				}
 			}
@@ -227,10 +247,20 @@ FDrop.attach(drop_target, function(files) {
 				h_prnts[id_mom] = mom;		// put mom fish obj into all-parents hash
 				if(dad) {
 					mom.mates[id_dad] = dad;		// add dad to the mom's mate hash
-					mom.kids_w_known_mates += 1;	// this mom has one more kid with a known mate
+					if(fish.fl < 300) {
+						mom.juve_kids_w_known_mates += 1;	// this mom has one more kid with a known mate
+					}
+					else {
+						mom.adlt_kids_w_known_mates += 1;	// this mom has one more kid with a known mate
+					}
 				}
 				else {
-					mom.kids_w_uc_mates += 1;		// this mom has one more kid with an unknown mate
+					if(fish.fl < 300) {
+						mom.juve_kids_w_uc_mates += 1;		// this mom has one more kid with an unknown mate
+					}
+					else {
+						mom.adlt_kids_w_uc_mates += 1;		// this mom has one more kid with an unknown mate
+					}
 				}
 			}
 
@@ -244,14 +274,24 @@ FDrop.attach(drop_target, function(files) {
 				h_prnts[id_dad] = dad;		// put mom fish obj into all-parents hash
 				if(mom) {
 					dad.mates[id_mom] = mom;		// add mom to the dad's mate hash
-					dad.kids_w_known_mates += 1;	// this dad has one more kid with a known mate
+					if(fish.fl < 300) {
+						dad.juve_kids_w_known_mates += 1;	// this dad has one more kid with a known mate
+					}
+					else {
+						dad.adlt_kids_w_known_mates += 1;	// this dad has one more kid with a known mate
+					}
 				}
 				else {
-					dad.kids_w_uc_mates += 1;		// this dad has one more kid with an unknown mate
+					if(fish.fl < 300) {
+						dad.juve_kids_w_uc_mates += 1;		// this dad has one more kid with an unknown mate
+					}
+					else {
+						dad.adlt_kids_w_uc_mates += 1;		// this dad has one more kid with an unknown mate
+					}
 				}
 			}
 		}
-
+		out("Total year mismatches: "+num_year_mismatches);
 
 		var hdrs = "NWFSC#;Year of return;Date;Julian Date;Sex;Origin;Length (mm);# Offspring w/Known Mates;# Mates;# Offspring with UC Mates;# Offspring total (w/ singles)".split(";");
 
@@ -286,7 +326,7 @@ FDrop.attach(drop_target, function(files) {
 		juve_rows.sort(function(a, b) { if(a.nwfsc < b.nwfsc) return -1; if(a.nwfsc > b.nwfsc) return 1; return 0; });
 		adlt_rows.sort(function(a, b) { if(a.nwfsc < b.nwfsc) return -1; if(a.nwfsc > b.nwfsc) return 1; return 0; });
 
-		var dl = function(prnts, fname) {
+		var dl = function(prnts, fname, j) {
 			var a = [hdrs];
 			prnts.forEach(function(prnt) {
 				a.push([
@@ -297,46 +337,23 @@ FDrop.attach(drop_target, function(files) {
 					prnt.sex,
 					prnt.origin,
 					prnt.length,
-					prnt.kids_w_known_mates,
+					j ? prnt.juve_kids_w_known_mates : prnt.adlt_kids_w_known_mates,
 					prnt.num_mates,
-					prnt.kids_w_uc_mates,
-					prnt.kids_total,
+					j ? prnt.juve_kids_w_uc_mates : prnt.adlt_kids_w_uc_mates,
+					j ? (prnt.juve_kids_w_known_mates + prnt.juve_kids_w_uc_mates) : (prnt.adlt_kids_w_known_mates + prnt.adlt_kids_w_uc_mates),
 				]);
 			});
+			out("Downloading "+fname);
 			downloadURI(encodeURI("data:text/csv;charset=utf-8,"+CSV.to_string(a)), fname);
 		}
 
-		setTimeout(function() { dl(juve_rows, "offspring-juvenile.csv"); }, 500);
-		setTimeout(function() { dl(adlt_rows, "offspring-adult.csv"); }, 1000);
+		setTimeout(function() {
+			dl(juve_rows, "offspring-juvenile.csv", true);
+		}, 500);
 
-		/*
-		out("Parents found: "+num_prnts+" ("+num_moms+" dams, "+num_dads+" sires)");
-
-		var h_prnt_juve {};
-		var h_prnt_adult = {};
-
-		for(var k in h_fish) {
-			var fish = h_fish[k];
-			var mom = h_fish[fish.mom];
-			if(mom) {
-				h_moms[fish.mom] = mom;
-				if(fish.adult) {
-				}
-			}
-			else {
-				warn("Dam "+k+" not found in offspring hash");
-			}
-		}
-
-
-
-		dl_csv = [
-			["foo", 3, "bar", 7],
-			["foo", 7, "bar", 3],
-		];
-
-		downloadURI(encodeURI("data:text/csv;charset=utf-8,"+CSV.to_string(dl_csv)), "newfile.csv");
-		*/
+		setTimeout(function() {
+			dl(adlt_rows, "offspring-adult.csv", false);
+		}, 1000);
 
 	});
 
