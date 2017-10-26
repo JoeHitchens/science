@@ -1,6 +1,6 @@
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-// Fishy Science Version 4
+// Fishy Science
 // Copyright 2017 Sleepless Software Inc. All Rights Reserved
 // Author: Joe Hitchens <joe@sleepless.com>
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -113,7 +113,7 @@ var scan_dir = function(path, pattern) {
 // Here's where we start the real science work
 // -----------------------------
 
-log("Fishy Science Version 4");
+log("Fishy Science Version 4.1");
 
 var data_in = process.argv[2] || "data_in";
 var data_out = process.argv[3] || "data_out";
