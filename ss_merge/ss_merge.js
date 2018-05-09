@@ -11,15 +11,28 @@ sleepless = require("sleepless");
 
 
 
-max_errors = 0;		// 0 disables max error exiting behavior
-num_errors = 0;
+num_errors = 0;		// counts the # of errors as they occur
+max_errors = 1;		// if max_errors > 0, then program aborts after that many errors have occured
 
+
+// Process command line arguments, set options based on them, etc.
 argv = process.argv;
+var i = 2;
+while(i < argv.length) {
+	var a = argv[i];
+	if(a == "-e") {
+		max_errors = toInt(argv[i+1]);
+		argv.splice(i, 2);
+		log("max_errors set to "+max_errors);
+	}
+	else {
+		i += 1;
+	}
+}
 if(argv.length < 3) {
 	log("Usage: node ss_merge.js file1.xlsx [file2.xlsx ...]");	
 	process.exit(1);
 };
-
 
 
 // walk through the command line arguments
@@ -62,14 +75,11 @@ proto_fish = {};
 log("Making the proto-fish ...");
 // iterate through the workbooks
 for(var i = 0; i < wbs.length; i += 1) {
-	//log("  "+files[i]);
-
 	var wb = wbs[i];
 
 	// iterate through the worksheets in the workbook
 	for(var shnum = 0; shnum < wb.SheetNames.length; shnum += 1) {
 		var shname = wb.SheetNames[shnum];
-		//log("    "+shname);
 		var sheet = wb.Sheets[shname];
 		sheet.lookup = [];
 
@@ -99,6 +109,7 @@ function new_fish() {
 
 // the fish hash which holds fish objects, keyed by their NWFSC fish ID (nwfsc)
 fishes = {};
+
 
 // pull a fish out of the hash by it's nwfsc
 function get_fish(nwfsc) {
@@ -162,7 +173,7 @@ for(var i = 0; i < wbs.length; i += 1) {
 					continue;
 				}
 				// both have data for this field, but it's not the same.
-				log("sheet '"+shname+"': row "+r+": ERROR: Different data for fish '"+nwfsc+"': field='"+fld+"': previously saw '"+fish[fld]+"'; now see '"+new_v+"'");
+				log("sheet '"+shname+"': row "+(r+1)+": ERROR: Different data for fish '"+nwfsc+"': field='"+fld+"': previously saw '"+fish[fld]+"'; now see '"+new_v+"'");
 				num_errors += 1;
 				if(max_errors > 0 && num_errors >= max_errors) {
 					log("exiting ... after max "+max_errors+" errors reached.");
@@ -174,7 +185,6 @@ for(var i = 0; i < wbs.length; i += 1) {
 	};
 
 }
-
 
 
 // first convert the fish has to sorted array
@@ -190,6 +200,7 @@ a_fishes.sort((a, b)=>{
 	if(a.nwfsc < b.nwfsc) { return -1 };
 	return 0;
 });
+
 
 // convert the a_fishes array to an array-of-arrays (aoa)
 log("Organizing data ...");
@@ -217,14 +228,20 @@ a_fishes.forEach((fish, i)=>{
 	// push the row onto the array-of-arrays
 	aoa.push(row);
 });
+log("Errors: "+num_errors);
+log("Unique NWFSC numbers found: "+a_fishes.length);
+log("Merged data has "+aoa.length+" rows & "+aoa[0].length+" columns");
+
 
 wb = XLSX.utils.book_new();		// Create a new excel workbook called wb
 ws = XU.aoa_to_sheet(aoa);		// convert the array-of-arrays to a worksheet
 XU.book_append_sheet(wb, ws, "A Bucket of Fish");	// add the worksheet to the workbook
 
+
 out_file = "output.xlsx";
 log("Writing to '"+out_file+"'");
 XLSX.writeFile(wb, out_file);	// write the workbook out to a file.
+
 
 log("Done.");
 
