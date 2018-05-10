@@ -90,9 +90,11 @@ for(var i = 0; i < wbs.length; i += 1) {
 			var cell = sheet[addr];
 			if(cell !== undefined) {
 				// cell is not empty
-				var fld = (cell.v).toId();
-				sheet.lookup[c] = fld;
-				proto_fish[fld] = "";
+				var fld = (cell.v || "").toId();
+				if(fld) {
+					sheet.lookup[c] = fld;
+					proto_fish[fld] = "";
+				}
 			}
 		}
 	};
@@ -153,33 +155,41 @@ for(var i = 0; i < wbs.length; i += 1) {
 				continue;
 			}
 			let nwfsc = tmp_fish.nwfsc;				// the nwfsc of the fish we're working on
-			var fish = get_fish(nwfsc);	// fetch the real fish object for this nwfsc
-			// merge the tmp_fish's data with the real fish
-			// iterate through the fields found in the tmp fish ...
-			for(var fld in tmp_fish) {
-				let new_v = tmp_fish[fld];
-				// now fld is the field found in the tmp_fish and new_v is it's value
-				if(fish[fld] == "") {
-					fish[fld] = new_v;	// real fish doesn't have this value, so copy it from tmp to real
-					continue;
+			if(/^\d{5}-\d{4}$/.test(nwfsc)) {
+
+				// nwfsc is valid
+
+				var fish = get_fish(nwfsc);	// fetch the real fish object for this nwfsc
+				// merge the tmp_fish's data with the real fish
+				// iterate through the fields found in the tmp fish ...
+				for(var fld in tmp_fish) {
+					let new_v = (""+tmp_fish[fld]).trim();
+					// now fld is the field found in the tmp_fish and new_v is it's value
+					if(fish[fld] == "") {
+						fish[fld] = new_v;	// real fish doesn't have this value, so copy it from tmp to real
+						continue;
+					}
+					// the real fish has some data in this field.
+					if(new_v == "") {
+						// tmp fish has "no data" for this field, so do nothing.
+						continue;
+					}
+					if(fish[fld].toLowerCase() == new_v.toLowerCase()) {
+						// tmp fish has the "same data" for this field, so do nothing.
+						continue;
+					}
+					// both have data for this field, but it's not the same.
+					log("sheet '"+shname+"': row "+(r+1)+": ERROR: Different data for fish '"+nwfsc+"': field='"+fld+"': previously saw '"+fish[fld]+"'; now see '"+new_v+"'");
+					num_errors += 1;
+					if(max_errors > 0 && num_errors >= max_errors) {
+						log("exiting ... after max "+max_errors+" errors reached.");
+						process.exit(1);
+					}
+					fish[fld] = "ERROR";
 				}
-				// the real fish has some data in this field.
-				if(new_v == "") {
-					// tmp fish has "no data" for this field, so do nothing.
-					continue;
-				}
-				if(fish[fld] == new_v) {
-					// tmp fish has the "same data" for this field, so do nothing.
-					continue;
-				}
-				// both have data for this field, but it's not the same.
-				log("sheet '"+shname+"': row "+(r+1)+": ERROR: Different data for fish '"+nwfsc+"': field='"+fld+"': previously saw '"+fish[fld]+"'; now see '"+new_v+"'");
-				num_errors += 1;
-				if(max_errors > 0 && num_errors >= max_errors) {
-					log("exiting ... after max "+max_errors+" errors reached.");
-					process.exit(1);
-				}
-				fish[fld] = "ERROR";
+			}
+			else {
+				log("sheet '"+shname+"': row "+(r+1)+": ERROR: Invalid fish ID '"+nwfsc);
 			}
 		}
 	};
