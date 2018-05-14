@@ -66,7 +66,7 @@ FDrop.attach(drop_target, function(files) {
 
 		// look for certain labels in the first row of the csv and note their positions, keyed by label, in the 'cols' hash.
 		var cols = {};
-		"NWFSC#;Brood Year;FL;Date of Capture;PP?;Dam;Sire;Dam Origin;Sire Origin".split(";").forEach(function(h) {
+		"NWFSC;Brood Year;FL;Date of Capture;PP?;Dam;Sire;Dam Origin;Sire Origin".split(";").forEach(function(h) {
 			var hrow = csv[0];
 			for(var i = 0; i < hrow.length; i++) {
 				if(hrow[i].lcase() == h.lcase()) {
@@ -239,8 +239,8 @@ FDrop.attach(drop_target, function(files) {
 
 			if(mom) {
 				mom.year_of_return = fish.brood_year;
-				mom.origin = fish.mom_origin;
-				mom.sex = "F";
+				mom.origin = fish.mom_origin;		// XXX compare, except if not same
+				mom.sex = "F";						// XXX compare, except if not right
 				mom.juve_kids += fish.fl < 300 ? 1 : 0;
 				mom.adlt_kids += fish.fl >= 300 ? 1 : 0;
 				h_moms[id_mom] = mom;		// put mom fish obj into mom hash
@@ -266,8 +266,8 @@ FDrop.attach(drop_target, function(files) {
 
 			if(dad) {
 				dad.year_of_return = fish.brood_year;
-				dad.origin = fish.dad_origin;
-				dad.sex = "M";
+				dad.origin = fish.dad_origin;		// XXX sanity check
+				dad.sex = "M";		// XXX sanity check
 				dad.juve_kids += fish.fl < 300 ? 1 : 0;
 				dad.adlt_kids += fish.fl >= 300 ? 1 : 0;
 				h_dads[id_dad] = dad;		// put dad fish obj into dad hash
