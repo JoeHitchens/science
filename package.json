@@ -12,8 +12,9 @@
     "log5": "^2.0.0",
     "meet": "^2.0.0",
     "runq": "^1.1.0",
-    "sleepless": "^2.4.7",
-    "sleepless-xlsx": "^1.0.0"
+    "sleepless": "^2.4.15",
+    "sleepless-xlsx": "^1.0.0",
+    "xlsx": "^0.12.12"
   },
   "devDependencies": {},
   "scripts": {

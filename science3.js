@@ -1,6 +1,6 @@
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-// Fishy Science Version 4
+// Fishy Science
 // Copyright 2017 Sleepless Software Inc. All Rights Reserved
 // Author: Joe Hitchens <joe@sleepless.com>
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -16,7 +16,6 @@ var fs = require("fs");
 var path = require("path");
 var zlib = require("zlib");
 
-
 // 3rd partynode.js modules
 var xlsx = require("sleepless-xlsx");
 
@@ -31,12 +30,12 @@ runq = require("runq");
 // Misc. supporting functions
 // -----------------------------
 
-// Writes out an object semi-readable form for debugging purposes
+// Writes out an object in semi-readable form for debugging purposes
 var dump = function(o) {
 	log(util.inspect(o), 3);
 }
 
-// return true if the path is a directory
+// Returns true if the path is a directory
 var is_dir = function(path) {
 	try { return fs.statSync(path).isDirectory(); } catch(e) { }
 	return false;
@@ -68,11 +67,11 @@ var rev_comp = function(s) {
 
 
 // Return a percentage as a number to 2 decimal places: mk_pct(6, 2) returns 33.33 (2 is 33.33% of 6)
-var mk_pct = function(t, f) {
-	if(f <= 0) {
+var mk_pct = function(whole, part) {
+	if(part <= 0) {
 		return 0;
 	}
-	return Math.round((f / t) * 10000) / 100;
+	return Math.round((part / whole) * 10000) / 100;
 }
 
 
@@ -84,7 +83,8 @@ var gunzip = function(inpath, cb) {
 	});
 }
 
-// Scan "path" for files, in any sub-dirs that match regular expression "pattern"
+// Scan dir at "path" for file names, in any sub-dirs and return then in an unsorted array.
+// If regular expression 'pattern' is included, only file names that match it are returned.
 var scan_dir = function(path, pattern) {
 	var found = [];
 	var a = fs.readdirSync(path);
@@ -113,7 +113,7 @@ var scan_dir = function(path, pattern) {
 // Here's where we start the real science work
 // -----------------------------
 
-log("Fishy Science Version 4");
+log("Fishy Science Version 4.1");
 
 var data_in = process.argv[2] || "data_in";
 var data_out = process.argv[3] || "data_out";
@@ -145,10 +145,10 @@ try {
 		.replace(/\r/g, "\n")				// replace carriage returns (if present) with newlines
 		.replace(/\n+/g, "\n")				// crunch down repeated newlines into just one
 		.split( "\n" )						// cut the text up into lines on newline boundaries
-	var a = a[0].split(",");
-	sex_fp = (a[0] || "").trim();
+	var a = a[0].split(",");				// split the first line on comma boundaries (all other lines ignored)
+	sex_fp = (a[0] || "").trim();			// expect sex_fp as first field
 	throwIf(!sex_fp, "No forward primer in sex_info.csv");
-	sex_prb = (a[1] || "").trim();
+	sex_prb = (a[1] || "").trim();			// expect sex_prb as second field
 	throwIf(!sex_prb, "No probe in sex_info.csv");
 	log("using sex locus sequences: FP="+sex_fp+" PRB="+sex_prb+(a[2] ? " "+a[2] : ""));
 } catch(e) {
@@ -170,28 +170,29 @@ fs
 	.replace(/\r/g, "\n")				// replace all carriage returns (if present) with newlines
 	.replace(/\n+/g, "\n")				// crunch down repeated newlines into just one
 	.split( "\n" )						// cut the text up into lines on newline boundaries
-	.forEach(function(line, ii) {			// and finally, start iterating through each of the lines
+	.forEach(function(line, ii) {		// and finally, start iterating through each of the lines
 
-	var cols = line.trim().split( /,/ );	// remove leading/trailing whitespace from line, and break it up on commas
+		var cols = line.trim().split( /,/ );	// trim leading/trailing whitespace & break it up on commas
 
-	var name = cols[0].trim();			// the first column is the name/label of the gene
+		var name = cols[0].trim();		// first column is the name/label of the gene
+										// second is the fwd primer
+										// 3rd and 4th are the 2 probes
 
-	// make an object 'g' that contains the gene name, fwd primer, and the 2 proboes
-	var g = {
-		name: name,
-		fwd_prm: cols[1].trim(),
-		probe1: cols[2].trim(),
-		probe2: cols[3].trim(),
-	};
+		// make an object 'g' that contains the gene name, fwd primer, and the 2 probes
+		var g = {
+			name: name,
+			fwd_prm: cols[1].trim(),
+			probe1: cols[2].trim(),
+			probe2: cols[3].trim(),
+		};
 
-	// add in the rever complements of the probes as well
-	g.probe1rc = rev_comp(g.probe1);
-	g.probe2rc = rev_comp(g.probe2);
+		// add in the reverse complements of the probes as well
+		g.probe1rc = rev_comp(g.probe1);
+		g.probe2rc = rev_comp(g.probe2);
 
-	hash[name] = g;			// place that object in the hash, keyed by the gene name.
-
-	gene_info.push(g);		// add the gene object to the gene_info array
-});
+		hash[name] = g;			// place that object in the hash, keyed by the gene name.
+		gene_info.push(g);		// ... and add the gene object to the gene_info array
+	});
 
 
 // load the locus file and merge info into hash
@@ -203,42 +204,42 @@ fs
 	.split("\n")							// cut the text up into lines on newline boundaries
 	.forEach(function(line) {				// and finally, start iterating through each of the lines
 
-	var cols = line.trim().split(",");		// remove leading/trailing whitespace from line, and break it up on commas
+		var cols = line.trim().split(",");		// trim leading/trailing whitespace and break it up on commas
 
-	var name = cols[0];						// the first column is the name/label of the gene
+		var name = cols[0];					// first column is the name/label of the gene
 
-	// verify that this gene was also present in the assay file.
-	var g = hash[name];
-	throwIf(!g, "sanity check: this gene wasn't in assay file: "+name);	
+		// verify that this gene was also present in the assay file.
+		var g = hash[name];
+		throwIf(!g, "sanity check: this gene wasn't in assay file: "+name);	
 
-	// verify that the fwd primer and the 2 probes are the same as those from the assay file
-	if(true) {
-		// this version errors if they don't match
-		throwIf(g.fwd_prm != cols[5].trim());	// sanity check: fwd primer should match
-		throwIf(g.probe1 != cols[3].trim());	// sanity check: probe 1 primer should match
-		throwIf(g.probe2 != cols[4].trim());	// sanity check: probe 2 primer should match
-	}
-	else {
-		// this version prints the two out so you can look them up, but doesn't generate error
-		if( g.fwd_prm != cols[5].trim() ) {
-			log( name+"  Fwd Prm: assay="+g.fwd_prm+" locus="+cols[5].trim() );
+		// verify that the fwd primer and the 2 probes are the same as those from the assay file
+		if(true) {
+			// this version errors if they don't match
+			throwIf(g.fwd_prm != cols[5].trim());	// sanity check: fwd primer should match
+			throwIf(g.probe1 != cols[3].trim());	// sanity check: probe 1 primer should match
+			throwIf(g.probe2 != cols[4].trim());	// sanity check: probe 2 primer should match
 		}
-		if(g.probe1 != cols[3].trim() ) {
-			log( name+" Probe 1: assay="+g.probe1+" locus="+cols[3].trim() );
+		else {
+			// this version prints the two out so you can look them up, but doesn't generate error
+			if( g.fwd_prm != cols[5].trim() ) {
+				log( name+"  Fwd Prm: assay="+g.fwd_prm+" locus="+cols[5].trim() );
+			}
+			if(g.probe1 != cols[3].trim() ) {
+				log( name+" Probe 1: assay="+g.probe1+" locus="+cols[3].trim() );
+			}
+			if(g.probe2 != cols[4].trim() ) {
+				log( name+" Probe 2: assay="+g.probe2+" locus="+cols[4].trim() );
+			}
 		}
-		if(g.probe2 != cols[4].trim() ) {
-			log( name+" Probe 2: assay="+g.probe2+" locus="+cols[4].trim() );
-		}
-	}
 
-	// add the additional file from locus file to the gene object (alleles, and correction factors)
-	g.allele1 = cols[1].trim();				// single nucleotide letter, like "A" or "G"
-	g.allele2 = cols[2].trim();				// same for allele2
+		// add the additional file from locus file to the gene object (alleles, and correction factors)
+		g.allele1 = cols[1].trim();				// single nucleotide letter, like "A" or "G"
+		g.allele2 = cols[2].trim();				// same for allele2
 
-	g.a1_corr = toFlt(cols[6]);				// allele1 correction factor
-	g.a2_corr = toFlt(cols[7]);				// same for allele2
+		g.a1_corr = toFlt(cols[6]);				// allele1 correction factor
+		g.a2_corr = toFlt(cols[7]);				// same for allele2
 
-});
+	});
 
 
 // Sort gene_info array by gene name, case insignificant
@@ -290,10 +291,10 @@ one_fish = function(inpath, finish) {
 			throwIf( lines[i+2].trim() != "+" );	// sanity check - expect this line to contain just a "+" sign
 			a.push( lines[i+1].trim() );			// add the line with the sequence to the array
 		}
-		// 'a' looks like [ "ACTG...", "GTCA...", ... ]
+		// 'a' should now look like [ "ACTG...", "GTCA...", ... ]
 		log("Fish: \""+fish.name+"\" ("+a.length+" sequences)");
 
-		fish.raw_reads = a.length;					// note the # of raw reads found in the fastq file (sex line line not included)
+		fish.raw_reads = a.length;					// note # of raw reads found in fastq file (sex line not included)
 
 
 		// Create a temp hash with one entry per unique sequence, where key is the actual sequence
@@ -307,7 +308,7 @@ one_fish = function(inpath, finish) {
 				hash[seq] += 1;
 			}
 		});
-		// 'hash' is like { "ACTG...": 123, "GTCA...": 456, ... }
+		// 'hash' now looks like { "ACTG...": 123, "GTCA...": 456, ... }
 
 		// Convert the hash into an array.
 		// Each array entry is an object containing the sequence and count.
@@ -318,12 +319,12 @@ one_fish = function(inpath, finish) {
 
 		// Sort the array, largest count to smallest count.
 		sequences.sort(function(a, b) {
-			if(a.count < b.count) return  1;
+			if(a.count < b.count) return 1;
 			if(a.count > b.count) return -1;
 			return 0;
 		});
 
-		// 'sequences' is like [ { sequence: "GTCA", count: 456 }, ... ]
+		// 'sequences' now looks like [ { sequence: "GTCA", count: 456 }, ... ]
 		fs.writeFileSync(outpath+"-hash.json", util.inspect(sequences), "utf8");
 
 
@@ -332,8 +333,8 @@ one_fish = function(inpath, finish) {
 		// Scan for and count genes and alleles
 		// -----------------------------
 
-		fish.genes = {};				// this holds info for this fish related to the genes we're looking for
-		fish.hits = 0;					// hits is my name for "on-target reads"
+		fish.genes = {};			// this holds info for this fish related to the genes we're looking for
+		fish.hits = 0;				// hits is my name for "on-target reads"
 
 		// traverse the list of genes in the assay/locus data
 		gene_info.forEach(function(g) {
@@ -617,7 +618,7 @@ one_fish = function(inpath, finish) {
 
 
 // -----------------------------
-// Compile data about all the fish into a several csv files
+// Compile data about all the fish into several csv files
 // -----------------------------
 var compile = function(finish) {
 	log("Compiling...");
@@ -743,18 +744,18 @@ var compile = function(finish) {
 // -----------------------------
 files = scan_dir(data_in, /\.fastq.gz$/ );
 
-var m = new Meet();
+var m = new Meet();		// XXX use runq or promises instead
 
 // queue each .fastq.gz for processing by one_fish()
 files.forEach(function(file) {
 	m.queue(one_fish, file);
 });
 
-m.queue(compile);				// then compile the results of all fish
+m.queue(compile);			// then compile the results of all fish
 
 m.allDone(function() {
 	log("Finished");
-	process.exit();		// exit program
+	process.exit();			// exit program
 });
 
 
