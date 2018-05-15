@@ -66,7 +66,7 @@ FDrop.attach(drop_target, function(files) {
 
 		// look for certain labels in the first row of the csv and note their positions, keyed by label, in the 'cols' hash.
 		var cols = {};
-		"NWFSC;Brood Year;FL;Date of Capture;PP?;Dam;Sire;Dam Origin;Sire Origin".split(";").forEach(function(h) {
+		"NWFSC;broodyear;FL;DateCaptured;Dam;Sire;DamOrigin;SireOrigin".split(";").forEach(function(h) {
 			var hrow = csv[0];
 			for(var i = 0; i < hrow.length; i++) {
 				if(hrow[i].lcase() == h.lcase()) {
@@ -98,20 +98,32 @@ FDrop.attach(drop_target, function(files) {
 			if(!fish) {
 				// First time we've seen this fish (nwfsc #), so
 				// create new fish object with this #.
+				var x_y = 0;
+				var dcap = row[cols.datecaptured.cnum];
+				if(dcap == ".") {
+					dcap = "";
+				}
+				if(!dcap.match(/^\d+$/)) {
+					if(dcap) {
+						log(dcap);
+						dcap = ts2dt(us2ts(row[cols.datecaptured.cnum])).getFullYear();
+					}
+				}
 				fish = {
 					// set these fields from input
 					line: i,		// line # in csv file where we first saw this # in the NWFSC# column
 					nwfsc: nwfsc,
-					brood_year: toInt(row[cols.brood_year.cnum]),			// contents of the "Brood Year" column as an integer
+					brood_year: toInt(row[cols.broodyear.cnum]),			// contents of the "Brood Year" column as an integer
 					fl: row[cols.fl.cnum],									// fish length?
-					date_of_capture: us2ts(row[cols.date_of_capture.cnum]),	// a unix timestamp or 0 if date can't be parsed
-					pp: row[cols.pp.cnum],									// what is PP again?
+					date_of_capture: dcap, //us2ts(row[cols.datecaptured.cnum]),	// a unix timestamp or 0 if date can't be parsed
+					//pp: row[cols.pp.cnum],									// what is PP again?
 					mom: fix_nwfsc(row[cols.dam.cnum]),
 					dad: fix_nwfsc(row[cols.sire.cnum]),
-					mom_origin: fix_origin(row[cols.dam_origin.cnum]),
-					dad_origin: fix_origin(row[cols.sire_origin.cnum]),
+					mom_origin: fix_origin(row[cols.damorigin.cnum]),
+					dad_origin: fix_origin(row[cols.sireorigin.cnum]),
 					// these fields to output
-					year_of_return: 0,
+					//year_of_return: row[cols.datecaptured.cnum] ? ts2dt(us2ts(row[cols.datecaptured.cnum])).getFullYear() : "",
+					year_of_return: dcap,
 					date: "",
 					julian_date: 0,
 					sex: "",
@@ -198,7 +210,12 @@ FDrop.attach(drop_target, function(files) {
 				}
 				else {
 					if(mom.year_of_return != fish.brood_year) {
-						warn("Line "+fish.line+": Dam("+mom.nwfsc+")/offspring("+fish.nwfsc+") year mismatch");
+						if(!mom.year_of_return) {
+							warn("Line: "+mom.line+": No year of return");
+						}
+						else {
+							warn("Lines "+fish.line+" v. "+mom.line+": Fish brood-year vs Dam year-of-return mismatch: "+fish.brood_year+" - "+mom.year_of_return);
+						}
 						num_year_mismatches += 1;
 					}
 				}
@@ -231,7 +248,12 @@ FDrop.attach(drop_target, function(files) {
 				}
 				else {
 					if(dad.year_of_return != fish.brood_year) {
-						warn("Line "+fish.line+": Sire("+dad.nwfsc+")/offspring("+fish.nwfsc+") year mismatch");
+						if(!dad.year_of_return) {
+							warn("Line: "+dad.line+": No year of return");
+						}
+						else {
+							warn("Lines "+fish.line+" v. "+dad.line+": Fish brood-year vs Sire year-of-return mismatch: "+fish.brood_year+" - "+dad.year_of_return);
+						}
 						num_year_mismatches += 1;
 					}
 				}
