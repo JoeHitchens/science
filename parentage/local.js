@@ -271,20 +271,20 @@ FDrop.attach(drop_target, function(files) {
 					h_prnts[id_mom] = mom;		// put mom fish obj into all-parents hash
 					if(dad) {
 						mom.mates[id_dad] = dad;		// add dad to the mom's mate hash
-						//if(fish.fl < 300) {
+						if(fish.fl < 300) {
 							mom.juve_kids_w_known_mates += 1;	// this mom has one more juvenile offspring with a known mate
-						//}
-						//else {
+						}
+						else {
 							mom.adlt_kids_w_known_mates += 1;	// this mom has one more adult offspring with a known mate
-						//}
+						}
 					}
 					else {
-						//if(fish.fl < 300) {
+						if(fish.fl < 300) {
 							mom.juve_kids_w_uc_mates += 1;		// this mom has one more juvenile offspring with an unknown mate
-						//}
-						//else {
+						}
+						else {
 							mom.adlt_kids_w_uc_mates += 1;		// this mom has one more adult offspring with an unknown mate
-						//}
+						}
 					}
 				}
 
