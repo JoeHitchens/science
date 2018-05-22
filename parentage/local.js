@@ -384,7 +384,53 @@ FDrop.attach(drop_target, function(files) {
 			dl(adlt_rows, "offspring-adult.csv", false);
 		}, 1000);
 
+
+
+		// write fish to database
+		let db_insert = function(sql, args, cb) {
+			let data = { user: "scientist", pass: "Darw1nRulez", dbname: "science" };
+			data.sql = sql;
+			data.args = args;
+			obj = { data: JSON.stringify(data) };
+			url = "https://sleepless.com/api/v1/sleepless/db/";
+			$.get( url, obj, cb);
+		};
+
+		// put them all into an array
+		let a = [];
+		for(var k in h_fish) {
+			a.push(h_fish[k]);
+		}
+
+		let waiting = 0;
+		let fun = function() {
+			if(a.length > 0) {
+				let f = a.shift();
+				setTimeout(function() {
+					waiting += 1;
+					let sql = "insert into fish (nwfsc) values (?)";
+					let args = [f.nwfsc];
+					db_insert(sql, args, function(r) {
+						waiting -= 1;
+						if(!r.error) {
+							out("INSERT ERROR: "+r.error);
+						}
+						else {
+							out("inserted "+f.nwfsc);
+						}
+						fun();
+					});
+				}, waiting * 100);
+			}
+			else {
+				out("DB inserts done!");
+			}
+		};
+		fun();
+
 	});
+
+
 
 
 });
