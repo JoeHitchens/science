@@ -329,7 +329,9 @@ FDrop.attach(drop_target, function(files) {
 			// count up the unique mates for this parent
 			for(var k2 in prnt.mates) { prnt.num_mates += 1; }
 
-			prnt.kids_total = prnt.kids_w_known_mates + prnt.kids_w_uc_mates;
+			//prnt.juve_kids_total = prnt.juve_kids_w_known_mates + prnt.juve_kids_w_uc_mates;
+			//prnt.adlt_kids_total = prnt.adlt_kids_w_known_mates + prnt.adlt_kids_w_uc_mates;
+			//prnt.kids_total = prnt.juve_kids_total + prnt.adlt_kids_total;
 
 			// count # of moms and dads
 			if(prnt.sex == "F") { num_moms += 1; } else { num_dads += 1; };
