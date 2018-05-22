@@ -259,7 +259,7 @@ FDrop.attach(drop_target, function(files) {
 				}
 			}
 
-			if(fish.fl < 300) {
+			//if(fish.fl < 300) {
 
 				if(mom) {
 					mom.year_of_return = fish.brood_year;
@@ -270,21 +270,21 @@ FDrop.attach(drop_target, function(files) {
 					h_moms[id_mom] = mom;		// put mom fish obj into mom hash
 					h_prnts[id_mom] = mom;		// put mom fish obj into all-parents hash
 					if(dad) {
-						mom.mates[id_dad] = dad;		// add dad to the mom's mate hash
-						//if(fish.fl < 300) {
+						if(fish.fl < 300) {
+							mom.mates[id_dad] = dad;		// add dad to the mom's mate hash
 							mom.juve_kids_w_known_mates += 1;	// this mom has one more juvenile offspring with a known mate
-						//}
-						//else {
+						}
+						else {
 							mom.adlt_kids_w_known_mates += 1;	// this mom has one more adult offspring with a known mate
-						//}
+						}
 					}
 					else {
-						//if(fish.fl < 300) {
+						if(fish.fl < 300) {
 							mom.juve_kids_w_uc_mates += 1;		// this mom has one more juvenile offspring with an unknown mate
-						//}
-						//else {
+						}
+						else {
 							mom.adlt_kids_w_uc_mates += 1;		// this mom has one more adult offspring with an unknown mate
-						//}
+						}
 					}
 				}
 
@@ -297,8 +297,8 @@ FDrop.attach(drop_target, function(files) {
 					h_dads[id_dad] = dad;		// put dad fish obj into dad hash
 					h_prnts[id_dad] = dad;		// put mom fish obj into all-parents hash
 					if(mom) {
-						dad.mates[id_mom] = mom;		// add mom to the dad's mate hash
 						if(fish.fl < 300) {
+							dad.mates[id_mom] = mom;		// add mom to the dad's mate hash
 							dad.juve_kids_w_known_mates += 1;	// this dad has one more juvenile offspring with a known mate
 						}
 						else {
@@ -314,7 +314,7 @@ FDrop.attach(drop_target, function(files) {
 						}
 					}
 				}
-			}
+			//}
 		}
 		out("Total year mismatches: "+num_year_mismatches);
 
@@ -350,6 +350,8 @@ FDrop.attach(drop_target, function(files) {
 
 		juve_rows.sort(function(a, b) { if(a.nwfsc < b.nwfsc) return -1; if(a.nwfsc > b.nwfsc) return 1; return 0; });
 		adlt_rows.sort(function(a, b) { if(a.nwfsc < b.nwfsc) return -1; if(a.nwfsc > b.nwfsc) return 1; return 0; });
+		out("juve output rows: "+juve_rows.length);
+		out("adlt output rows: "+adlt_rows.length);
 
 		var dl = function(prnts, fname, j) {
 			var a = [hdrs];
