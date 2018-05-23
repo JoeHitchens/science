@@ -38,16 +38,16 @@
 		left: 0;
 		width: 100%;
 		height: 300%;
-		background: rgba(0,0,0,0.2);
+		background: rgba(0,0,0,0.4);
 		text-align: center;
 	}
 
 	.page .content {
 		z-index: 1;
-		background: #fdf;
+		background: #fff;
 		display: inline-block;
 		margin-top: 5em;
-		padding: 4em;
+		padding: 1em 4em;
 		border: solid 4px #888;
 	}
 
@@ -112,23 +112,23 @@
 		<form name=edit>
 			<h3>Fish Details</h3>
 			<table id=tpl_details>
-				<tr> <td> nwfsc </td> <td> <input type=text name="nwfsc"> </td> </tr>
-				<tr> <td> brood_year </td> <td> <input type=text name="brood_year"> </td> </tr>
-				<tr> <td> date_captured </td> <td> <input type=text name="date_captured"> </td> </tr>
-				<tr> <td> fork_length </td> <td> <input type=text name="fork_length"> </td> </tr>
-				<tr> <td> sex </td> <td> <input type=text name="sex"> </td> </tr>
-				<tr> <td> origin </td> <td> <input type=text name="origin"> </td> </tr>
-				<tr> <td> disp </td> <td> <input type=text name="disp"> </td> </tr>
-				<tr> <td> dam </td> <td> <input type=text name="dam"> </td> </tr>
-				<tr> <td> sire </td> <td> <input type=text name="sire"> </td> </tr>
-				<tr> <td> pot_par </td> <td> <input type=text name="pot_par"> </td> </tr>
-				<tr> <td> pot_off </td> <td> <input type=text name="pot_off"> </td> </tr>
+				<tr> <td> nwfsc </td> <td> <input type=text name="nwfsc" value="__nwfsc__"> </td> </tr>
+				<tr> <td> brood_year </td> <td> <input type=text name="brood_year" value="__brood_year__"> </td> </tr>
+				<tr> <td> date_captured </td> <td> <input type=text name="date_captured" value="__date_captured__"> </td> </tr>
+				<tr> <td> fork_length </td> <td> <input type=text name="fork_length" value="__fork_length__"> </td> </tr>
+				<tr> <td> sex </td> <td> <input type=text name="sex" value="__sex__"> </td> </tr>
+				<tr> <td> origin </td> <td> <input type=text name="origin" value="__origin__"> </td> </tr>
+				<tr> <td> disp </td> <td> <input type=text name="disp" value="__disp__"> </td> </tr>
+				<tr> <td> dam </td> <td> <input type=text name="dam" value="__dam__"> </td> </tr>
+				<tr> <td> sire </td> <td> <input type=text name="sire" value="__sire__"> </td> </tr>
+				<tr> <td> pot_par </td> <td> <input type=text name="pot_par" value="__pot_par__"> </td> </tr>
+				<tr> <td> pot_off </td> <td> <input type=text name="pot_off" value="__pot_off__"> </td> </tr>
 				<tr> <td> </td> <td>
 				</td> </tr>
 			</table>
 			<hr>
-				<input type=button name=cancel value="Cancel">
-				<input type=submit value="Save">
+			<input type=button name=cancel value="Cancel">
+			<input type=submit value="Save">
 		</form>
 	</div>
 </div>
