@@ -2,18 +2,77 @@
 <html>
 <body>
 
+<style>
+	body {
+		margin: 4em;
+	}
+	.page {
+		display: none;
+	}
+	table {
+		border-collapse: collapse;
+		display: inline-block;
+		background: #fff;
+	}
+	td:first-child {
+		background: rgba(0, 0, 0, 0.2);
+	}
+	td {
+	    border: solid 1px #ccc;
+		padding: 0.5em;
+	}
+	tr:first-child {
+		background: rgba(0, 0, 0, 0.2);
+	}
+
+	.hot {
+		cursor: pointer;
+	}
+	.hot:hover {
+		opacity: 0.6;
+	}
+
+	.page {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 300%;
+		background: rgba(0,0,0,0.2);
+		text-align: center;
+	}
+
+	.page .content {
+		z-index: 1;
+		background: #fdf;
+		display: inline-block;
+		margin-top: 5em;
+		padding: 4em;
+		border: solid 4px #888;
+	}
+
+</style>
+
+<script src="jquery.min.js"></script>
+
+<script src="sleepless.js"></script>
+<script src="replicate.js"></script>
+
+<script src="local.js"></script>
+
+
 <div class=page name="search">
-	<form>
-		<h3>Fish Fish</h3>
+	<form name=search>
+		<h3>Search</h3>
 		<table>
 			<tr>
-				<td> nwfsc </td> <td> <input type=text name="nwfsc"> </td>
+				<td> NWFSC # </td> <td> <input type=text name="frag"> </td>
 				<td> </td> <td> <input type=submit name="Save"> </td>
 			</tr>
 		</table>
 	</form>
 
-	<div>
+	<div name="found">
 		<h3>Found</h3>
 		<table>
 			<tr>
@@ -29,7 +88,7 @@
 				<td> pot_par </td> 
 				<td> pot_off </td> 
 			</tr>
-			<tr id=tpl_search_result>
+			<tr id=tpl_search_result class="hot">
 				<td> __nwfsc__ </td> 
 				<td> __brood_year__ </td> 
 				<td> __date_captured__ </td> 
@@ -49,23 +108,29 @@
 
 
 <div class=page name="edit">
-	<form>
-		<h3>Edit Fish</h3>
-		<table>
-			<tr> <td> nwfsc </td> <td> <input type=text name="nwfsc"> </td> </tr>
-			<tr> <td> brood_year </td> <td> <input type=text name="brood_year"> </td> </tr>
-			<tr> <td> date_captured </td> <td> <input type=text name="date_captured"> </td> </tr>
-			<tr> <td> fork_length </td> <td> <input type=text name="fork_length"> </td> </tr>
-			<tr> <td> sex </td> <td> <input type=text name="sex"> </td> </tr>
-			<tr> <td> origin </td> <td> <input type=text name="origin"> </td> </tr>
-			<tr> <td> disp </td> <td> <input type=text name="disp"> </td> </tr>
-			<tr> <td> dam </td> <td> <input type=text name="dam"> </td> </tr>
-			<tr> <td> sire </td> <td> <input type=text name="sire"> </td> </tr>
-			<tr> <td> pot_par </td> <td> <input type=text name="pot_par"> </td> </tr>
-			<tr> <td> pot_off </td> <td> <input type=text name="pot_off"> </td> </tr>
-			<tr> <td> </td> <td> <input type=submit value="Save"> </td> </tr>
-		</table>
-	</form>
+	<div class=content>
+		<form name=edit>
+			<h3>Fish Details</h3>
+			<table id=tpl_details>
+				<tr> <td> nwfsc </td> <td> <input type=text name="nwfsc"> </td> </tr>
+				<tr> <td> brood_year </td> <td> <input type=text name="brood_year"> </td> </tr>
+				<tr> <td> date_captured </td> <td> <input type=text name="date_captured"> </td> </tr>
+				<tr> <td> fork_length </td> <td> <input type=text name="fork_length"> </td> </tr>
+				<tr> <td> sex </td> <td> <input type=text name="sex"> </td> </tr>
+				<tr> <td> origin </td> <td> <input type=text name="origin"> </td> </tr>
+				<tr> <td> disp </td> <td> <input type=text name="disp"> </td> </tr>
+				<tr> <td> dam </td> <td> <input type=text name="dam"> </td> </tr>
+				<tr> <td> sire </td> <td> <input type=text name="sire"> </td> </tr>
+				<tr> <td> pot_par </td> <td> <input type=text name="pot_par"> </td> </tr>
+				<tr> <td> pot_off </td> <td> <input type=text name="pot_off"> </td> </tr>
+				<tr> <td> </td> <td>
+				</td> </tr>
+			</table>
+			<hr>
+				<input type=button name=cancel value="Cancel">
+				<input type=submit value="Save">
+		</form>
+	</div>
 </div>
 
 
