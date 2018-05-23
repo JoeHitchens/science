@@ -13,7 +13,8 @@
     "log5": "^2.0.0",
     "meet": "^2.0.0",
     "runq": "^1.1.0",
-    "sleepless": "^2.4.15",
+    "sleepless": "^2.5.1",
+    "sleepless-replicate": "^2.2.4",
     "sleepless-xlsx": "^1.0.0",
     "xlsx": "^0.12.12"
   },
