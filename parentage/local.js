@@ -10,6 +10,10 @@ out = function(s) {
 	output.appendChild(d);
 }
 
+function outx(s) {
+	$("#output_x").html(s);
+}
+
 
 downloadURI = function(uri, name) {
 	var link = document.createElement("a");
@@ -66,7 +70,7 @@ FDrop.attach(drop_target, function(files) {
 
 		// look for certain labels in the first row of the csv and note their positions, keyed by label, in the 'cols' hash.
 		var cols = {};
-		"NWFSC;broodyear;FL;DateCaptured;Dam;Sire;DamOrigin;SireOrigin".split(";").forEach(function(h) {
+		"NWFSC;broodyear;FL;disp;sex;origin;DateCaptured;Dam;Sire;DamOrigin;SireOrigin".split(";").forEach(function(h) {
 			var hrow = csv[0];
 			for(var i = 0; i < hrow.length; i++) {
 				if(hrow[i].lcase() == h.lcase()) {
@@ -103,12 +107,19 @@ FDrop.attach(drop_target, function(files) {
 				if(dcap == ".") {
 					dcap = "";
 				}
-				if(!dcap.match(/^\d+$/)) {
+				if(dcap.match(/^\d+$/)) {
+					// it's not just a year with no month/day
+					dcap = my2ts(dcap+"-01-01 00:00:00");
+				}
+				else {
+					// it's not just a year
 					if(dcap) {
-						log(dcap);
-						dcap = ts2dt(us2ts(row[cols.datecaptured.cnum])).getFullYear();
+						// it's non-blank
+						//dcap = ts2dt(us2ts(row[cols.datecaptured.cnum])).getFullYear();
+						dcap = us2ts(row[cols.datecaptured.cnum]);
 					}
 				}
+
 				fish = {
 					// set these fields from input
 					line: i,		// line # in csv file where we first saw this # in the NWFSC# column
@@ -126,8 +137,9 @@ FDrop.attach(drop_target, function(files) {
 					year_of_return: dcap,
 					date: "",
 					julian_date: 0,
-					sex: "",
-					origin: "",
+					disp: row[cols.disp.cnum],
+					sex: row[cols.sex.cnum],
+					origin: row[cols.orgin.cnum],
 					length: row[cols.fl.cnum],
 					num_mates: 0,
 					juve_kids_w_known_mates: 0,
@@ -142,6 +154,19 @@ FDrop.attach(drop_target, function(files) {
 					mates: {},
 					num_mates: 0,
 				}
+
+				// Ewann says that a fish with an origin is bogus.
+				if(!fish.origin) {
+					warn("Line "+i+": fish "+fish.nwfsc+" has no origin.");
+				}
+
+				// Ewann says that it's okay to have a juvenile fish with unknown sex.
+				//if(fish.sex != "F" && fish.sex != "M") {
+				//	if(fish.sex != "" && fish.sex != "J") {
+				//		warn("Line "+i+": weird sex: "+fish.sex);
+				//	}
+				//	fish.sex = "";
+				//}
 
 				h_fish[nwfsc] = fish;			// put the object into the hash
 				num_fish += 1;					// increment the # of fish found
@@ -263,8 +288,8 @@ FDrop.attach(drop_target, function(files) {
 
 				if(mom) {
 					mom.year_of_return = fish.brood_year;
-					mom.origin = fish.mom_origin;		// XXX compare, except if not same
-					mom.sex = "F";						// XXX compare, except if not right
+					//mom.origin = fish.mom_origin;		// XXX compare, except if not same
+					//mom.sex = "F";						// XXX compare, except if not right
 					mom.juve_kids += fish.fl < 300 ? 1 : 0;
 					mom.adlt_kids += fish.fl >= 300 ? 1 : 0;
 					h_moms[id_mom] = mom;		// put mom fish obj into mom hash
@@ -290,8 +315,8 @@ FDrop.attach(drop_target, function(files) {
 
 				if(dad) {
 					dad.year_of_return = fish.brood_year;
-					dad.origin = fish.dad_origin;		// XXX sanity check
-					dad.sex = "M";		// XXX sanity check
+					//dad.origin = fish.dad_origin;		// XXX sanity check
+					//dad.sex = "M";		// XXX sanity check
 					dad.juve_kids += fish.fl < 300 ? 1 : 0;
 					dad.adlt_kids += fish.fl >= 300 ? 1 : 0;
 					h_dads[id_dad] = dad;		// put dad fish obj into dad hash
@@ -361,7 +386,7 @@ FDrop.attach(drop_target, function(files) {
 				a.push([
 					prnt.nwfsc,
 					prnt.year_of_return,
-					prnt.date,
+					ts2us(prnt.date_captured),
 					prnt.julian_date,
 					prnt.sex,
 					prnt.origin,
@@ -388,11 +413,11 @@ FDrop.attach(drop_target, function(files) {
 
 		// write fish to database
 		let db_insert = function(sql, args, cb) {
-			let data = { user: "scientist", pass: "Darw1nRulez", dbname: "science" };
+			let data = { user: "scientist", pass: "SybJKzvVydbFThvD", dbname: "science" };
 			data.sql = sql;
 			data.args = args;
 			obj = { data: JSON.stringify(data) };
-			url = "https://sleepless.com/api/v1/sleepless/db/";
+			url = "https://sleepless.com/api/v1/sleepless/db/mysql";
 			$.get( url, obj, cb);
 		};
 
@@ -402,28 +427,46 @@ FDrop.attach(drop_target, function(files) {
 			a.push(h_fish[k]);
 		}
 
+		let ts_start = new Date().getTime();
+		let num_inserted = 0;
+		let num_errors = 0;
 		let waiting = 0;
 		let fun = function() {
 			if(a.length > 0) {
 				let f = a.shift();
 				setTimeout(function() {
 					waiting += 1;
-					let sql = "insert into fish (nwfsc) values (?)";
-					let args = [f.nwfsc];
+					let sql = "insert into fish (nwfsc, brood_year, fork_length, date_captured, disposition, nwfsc_dam, nwfsc_sire, sex, origin) values (?,?,?,from_unixtime(?),?,?,?,?,?)";
+					let args = [
+						f.nwfsc,
+						f.brood_year || 0,
+						f.fl || 0,
+						f.date_of_capture || 0,
+						f.disp || "",
+						f.mom || "",
+						f.dad || "",
+						f.sex || "",
+						f.origin || "",
+					];
 					db_insert(sql, args, function(r) {
 						waiting -= 1;
-						if(!r.error) {
+						if(r.error) {
+							num_errors += 1;
 							out("INSERT ERROR: "+r.error);
 						}
 						else {
-							out("inserted "+f.nwfsc);
+							num_inserted += 1;
+							outx("inserted "+f.nwfsc+" - "+waiting);
 						}
-						fun();
+						if(a.length == 0) {
+							let n = (new Date().getTime() - ts_start) / 1000;
+							outx(num_inserted+" DB inserts done in "+n+" seconds. "+num_errors+" errors.");
+						}
 					});
-				}, waiting * 100);
+					fun();
+				}, waiting * 5);
 			}
 			else {
-				out("DB inserts done!");
 			}
 		};
 		fun();
