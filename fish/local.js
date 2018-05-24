@@ -7,6 +7,14 @@ function search( frag ) {
 	$("[name=found]").hide();
 	$("[name=search]").show();
 
+	let el = document.forms.search.elements.frag;
+	el.value = frag;
+	$(el).focus();
+
+	if(!frag) {
+		return;
+	}
+
 	let data = { user: "scientist", pass: "SybJKzvVydbFThvD", dbname: "science" };
 	data.sql = "select * from fish where nwfsc like ? order by nwfsc";
 	data.args = ["%"+frag+"%"];
@@ -18,11 +26,11 @@ function search( frag ) {
 			e.onclick = function() {
 
 				replicate("tpl_details", [fish]);
-				$("div.edit").dialog({
+				$("div.page[name=edit]").dialog({
 					title: "A Fish Called "+fish.nwfsc,
 					modal: true,
+					width: "auto",
 					buttons: [
-						{ text: "Cancel", click: function() { $(this).dialog("close"); }, },
 						{
 							text: "Save",
 							click: function() {
@@ -44,21 +52,18 @@ function search( frag ) {
 }
 
 
-
 $(document).ready(()=>{
 
 	replicate("tpl_search_result", []);
 
 	let forms = document.forms;
+	let f_search = forms.search;
+	let f_edit = forms.edit;
 
-	forms.search.onsubmit = function() {
+	f_search.onsubmit = function() {
 		let frag = this.elements.frag.value;
 		document.location = "?search_frag="+frag;
 		return false;
-	};
-
-	forms.edit.elements.cancel.onclick = ()=>{
-		$("[name=edit]").hide();
 	};
 
 	let qd = getQueryData();
