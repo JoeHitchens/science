@@ -112,6 +112,17 @@ function search( frag ) {
 }
 
 
+downloadURI = function(uri, name) {
+	var link = document.createElement("a");
+	link.download = name;
+	link.href = uri;
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+	delete link;
+}
+
+
 function download_parentage() {
 	
 	let e_out = getEl("out");
@@ -243,11 +254,11 @@ function download_parentage() {
 
 		});
 
+		downloadURI(encodeURI("data:text/csv;charset=utf-8,"+CSV.to_string(aoa)), "parentage.csv");
+
 	});
 }
 
-
-downloadURI(encodeURI("data:text/csv;charset=utf-8,"+CSV.to_string(a)), fname);
 
 
 $(document).ready(()=>{
