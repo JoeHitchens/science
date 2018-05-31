@@ -153,7 +153,11 @@ function download_parentage() {
 			" juve offspring w/unknown mates",
 		]);
 
+		let last_p = 0;
+		let ln = 0;
 		recs.forEach((fish) => {
+
+			ln += 1;
 
 			fish.num_kids = 0;
 			fish.num_kids_known_mates = 0;
@@ -252,7 +256,15 @@ function download_parentage() {
 				fish.num_juve_kids_unknown_mates,
 			]);
 
+			let p = Math.round((ln * 10) / recs.length);
+			if(p != last_p) {
+				last_p = p;
+				out(""+p+"0%");
+			}
+
 		});
+
+		out("Downloading 'parentage.csv'");
 
 		downloadURI(encodeURI("data:text/csv;charset=utf-8,"+CSV.to_string(aoa)), "parentage.csv");
 
