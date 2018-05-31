@@ -59,46 +59,49 @@ function search( frag ) {
 	db(sql, args, (r)=>{
 		if(r.error) { alert(r.error); return; }
 		replicate("tpl_search_result", r.records, (e, fish, i)=>{
-			e.onclick = function() {
+			$(e).click( function(evt) {
 				
-				replicate("tpl_details", [fish]);
-				document.forms.edit.onchange = ()=>{
-					log("modified");
-					sticky_msg = "Unsaved changes.";
-					$(".save_btn").addClass("accent");
-				};
+				if(evt.target.tagName != "A") {
+					
+					replicate("tpl_details", [fish]);
+					document.forms.edit.onchange = ()=>{
+						log("modified");
+						sticky_msg = "Unsaved changes.";
+						$(".save_btn").addClass("accent");
+					};
 
-				$("div.page[name=edit]").dialog({
-					title: "A Fish Called "+fish.nwfsc,
-					modal: true,
-					width: "auto",
-					buttons: [
-						{
-							class: "save_btn",
-							text: "Save",
-							click: function() {
-								let dlg = this;
-								save(fish, function() {
-									$(dlg).dialog("close");
-									reload();
-								});
+					$("div.page[name=edit]").dialog({
+						title: "A Fish Called "+fish.nwfsc,
+						modal: true,
+						width: "auto",
+						buttons: [
+							{
+								class: "save_btn",
+								text: "Save",
+								click: function() {
+									let dlg = this;
+									save(fish, function() {
+										$(dlg).dialog("close");
+										reload();
+									});
+								},
 							},
-						},
-					],
-					beforeClose: (evt, ui)=>{
-						log(sticky_msg);
-						if(sticky_msg) {
-							if(!confirm(sticky_msg)) {
-								return false;
+						],
+						beforeClose: (evt, ui)=>{
+							log(sticky_msg);
+							if(sticky_msg) {
+								if(!confirm(sticky_msg)) {
+									return false;
+								}
 							}
-						}
-						return true;
-					},
-					open: (evt, ui)=>{
-						$(".save_btn").removeClass("accent");
-					},
-				});
-			}
+							return true;
+						},
+						open: (evt, ui)=>{
+							$(".save_btn").removeClass("accent");
+						},
+					});
+				}
+			})
 		});
 		$("[name=found]").show();
 		$("[name=search]").show();
