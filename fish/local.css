@@ -1,0 +1,61 @@
+body {
+	margin: 4em;
+}
+.page {
+	display: none;
+}
+table {
+	border-collapse: collapse;
+	display: inline-block;
+	background: #fff;
+}
+td:first-child {
+	background: rgba(0, 0, 0, 0.2);
+}
+td {
+	border: solid 1px #ccc;
+	padding: 0.5em;
+}
+tr:first-child {
+	background: rgba(0, 0, 0, 0.2);
+}
+
+.hot {
+	cursor: pointer;
+}
+.hot:hover {
+	opacity: 0.6;
+}
+
+.page {
+}
+
+.page .content {
+	width: 100%;
+}
+
+.accent {
+	background-color: #cf4;
+}
+.accent:hover {
+	background-color: #ff0;
+}
+
+.modified {
+	background-color: #ffa;
+}
+
+.busy {
+	display: fixed;
+	top: 0;
+	left: 0;
+	width: 200%;
+	height: 400%;
+	z-index: 10;
+	background-color: rgba(0,0,0,0.5);
+}
+
+[name=frag] {
+	width: 300px;
+}
+
