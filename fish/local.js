@@ -8,7 +8,7 @@ function db(sql, args, cb) {
 	$(".busy").show();
 	let data = { user: "scientist", pass: "SybJKzvVydbFThvD", dbname: "science", sql: sql, args: args };
 	obj = { data: JSON.stringify(data) };
-	url = "https://sleepless.com/api/v1/sleepless/db/mysql";
+	url = "https://sleepless.com/api/v1/db/mysql";
 	$.get(url, obj, (r)=>{
 		$(".busy").hide();
 		cb(r);
