@@ -391,10 +391,10 @@ FDrop.attach(drop_target, function(files) {
 					prnt.sex,
 					prnt.origin,
 					prnt.length,
-					j ? prnt.juve_kids_w_known_mates : prnt.adlt_kids_w_known_mates,
-					prnt.num_mates,
-					j ? prnt.juve_kids_w_uc_mates : prnt.adlt_kids_w_uc_mates,
-					j ? (prnt.juve_kids_w_known_mates + prnt.juve_kids_w_uc_mates) : (prnt.adlt_kids_w_known_mates + prnt.adlt_kids_w_uc_mates),
+					j ? (prnt.juve_kids_w_known_mates + prnt.juve_kids_w_uc_mates) : (prnt.adlt_kids_w_known_mates + prnt.adlt_kids_w_uc_mates), // kids total (w/ singles)
+					prnt.num_mates,		// total mates
+					j ? prnt.juve_kids_w_known_mates : prnt.adlt_kids_w_known_mates,	// kids with known mates
+					j ? prnt.juve_kids_w_uc_mates : prnt.adlt_kids_w_uc_mates,		// kids w/ UC mates
 				]);
 			});
 			out("Downloading "+fname);
@@ -472,9 +472,6 @@ FDrop.attach(drop_target, function(files) {
 		fun();
 
 	});
-
-
-
 
 });
 
