@@ -1,7 +1,7 @@
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 // Fishy Science
-// Copyright 2017 Sleepless Software Inc. All Rights Reserved
+// Copyright 2019 Sleepless Software Inc. All Rights Reserved
 // Author: Joe Hitchens <joe@sleepless.com>
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 

@@ -4,21 +4,17 @@ Fishy Science Version 4
 
 Created by Joe Hitchens, Sleepless Software, Inc. (2017)
 
+This program  was written to be running all the time, so there's no technical reason
+why it has to ever be stopped.  It doesn't consume any resources on the computer unless it's
+actively processing a job.  You can, however, start it when you're ready to use it and stop
+it afterward if you like.
 
-Open the cmd window (go to the Windows Start menu, and type "cmd" in the "Search programs and files" bar at the bottom.  Double-click
-the "cmd" program it finds.  At the prompt, navigate to C:\Users\Ewann.Berntson\science.  Type "node jobd.js" then hit Enter.  This 
-will start the process.  This window must remain open while you are analyzing data. 
+The idea was that the daemon is always just sitting there waiting for people to give it a job to do
+so it's not necessary to alway stop/start it, you just drop jobs into the hopper at will and the results
+pop out the other end.
 
-If your job is not processing once you copy your job folder to the "start" folder (see README file in "jobs") check the cmd window and 
-make sure the jobd.js is still running.  If you find an error message and the prompt is at "Science," simply re-type "node jobd.js" 
-and hit Enter, and your job should then process.
-
-Joe says:
-
-	The jobd.js (job daemon) was written to be running all the time, so there's no technical reason
-	why it has to ever be stopped.  If it crashes, you'll have to restart it of course.
-	The idea was that the daemon is always just sitting there waiting for people to give it a job to do.
-
-	Also, it should be possible to just double-click on the jobd.bat file to open a cmd window and start the daemon.
+To start the program, it should be possible to just double-click on the jobd.bat file.
+This should open a cmd window and start the daemon. Leave the cmd window open as long as there are 
+jobs in the "working" folder.
 
 
