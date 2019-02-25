@@ -1,5 +1,5 @@
 
-var CSV = {
+CSV = {
 	from_string: function(str) {
 		str = str.trim().replace( /\r/, "" );
 		var lines = str.trim().split("\n");			// convert it to array of lines

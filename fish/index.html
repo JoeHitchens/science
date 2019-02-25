@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html>
 <head>
@@ -8,12 +9,22 @@
 
 	<script src="sleepless.js"></script>
 	<script src="replicate.js"></script>
+	<script src="csv.js"></script>
 
 	<link rel="stylesheet" href="local.css">
 	<script src="local.js"></script>
 
 </head>
 <body>
+
+
+<div >
+	<input type=button value="Download Parentage" onclick="download_parentage()" />
+	Be patient, as this can sometimes take a minute or so to run.
+	<div id="out"></div>
+</div>
+
+<hr>
 
 <div class=page name="search">
 	<form name=search>
@@ -50,8 +61,8 @@
 				<td> __sex__ </td> 
 				<td> __origin__ </td> 
 				<td> __disp__ </td> 
-				<td> __dam__ </td> 
-				<td> __sire__ </td> 
+				<td> <a href="?search_frag=__dam__">__dam__ </a></td> 
+				<td> <a href="?search_frag=__sire__">__sire__ </a></td> 
 				<td> __pot_par__ </td> 
 				<td> __pot_off__ </td> 
 			</tr>
