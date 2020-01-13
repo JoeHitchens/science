@@ -128,7 +128,7 @@ if(is_dir(data_out)) {
 	log("Output directory: \""+data_out+"\"");
 }
 else {
-	fs.mkdir(data_out);
+	fs.mkdirSync(data_out);
 	log("Output directory created \""+data_out+"\"");
 }
 
