@@ -532,18 +532,16 @@ one_fish = function(inpath, finish) {
 				}
 			});
 
-
 			if(fp_hits == 0)
 				fp_hits = 1;
 
-			var hit_pct = mk_pct(fp_hits, prb_hits);
+			var hit_pct = mk_pct(fp_hits, prb_hits);		// prb_hits is hit_pct% of fp_hits
 			var adj_hits = toInt(fish.hits * 0.004);		// XXX ??
 			if(adj_hits == 0)
 				adj_hits = 1;
 			if(prb_hits == 0)
 				prb_hits = 1;
 			var ratio = Math.round((adj_hits / prb_hits) * 1000) / 1000;
-			//var sex_genotype, sex_genoclass;
 			if(adj_hits + prb_hits < 10) {
 				fish.sex_genotype = "-lac-";
 				fish.sex_genoclass = "NA";
