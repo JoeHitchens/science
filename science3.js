@@ -288,7 +288,7 @@ one_fish = function(inpath, finish) {
 		// create temp array, "a", containing all the nucleotide sequences from the fastq data, discarding the rest of the data
 		var a = [];									// create the array (empty)
 		for(var i = 0; i < lines.length; i += 4) {	// traverse the lines in groups of 4
-			throwIf( lines[i+2].trim() != "+" );	// sanity check - expect this line to contain just a "+" sign
+			throwIf( lines[i+2].trim() != "+", "Sanity check failed: line "+(i+1)+" in file "+file+" doesn't end with '+'" );	// sanity check - expect this line to contain just a "+" sign
 			a.push( lines[i+1].trim() );			// add the line with the sequence to the array
 		}
 		// 'a' should now look like [ "ACTG...", "GTCA...", ... ]
