@@ -17,7 +17,7 @@
     "sleepless": "^2.5.1",
     "sleepless-replicate": "^2.2.4",
     "sleepless-xlsx": "^1.0.0",
-    "xlsx": "^0.12.12"
+    "xlsx": "^0.17.0"
   },
   "devDependencies": {},
   "scripts": {
